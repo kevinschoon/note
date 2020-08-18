@@ -8,6 +8,19 @@ type t = {
   created : Time.t;
 }
 
+let to_string note =
+    let dict = Ezjsonm.dict [
+        ("title", Ezjsonm.string note.title) ;
+        ("tags", Ezjsonm.strings note.tags) ;
+    ] in
+    let front_matter = Ezjsonm.to_string dict in
+    String.concat ~sep: "\n" [
+     "---" ;
+     front_matter ; 
+     "---" ;
+     note.content ;
+    ]
+
 let get_title dict =
   let title = List.find ~f:(fun (key, _) -> equal_string key "title") dict in
   match title with Some (_, v) -> Ezjsonm.get_string v | None -> ""
@@ -83,11 +96,12 @@ let read_notes_filtered path filters =
         List.filter ~f:(fun note -> filter_note_by_tags note filters) notes
   else notes
 
+let save note slug = 
+ ()
+
 let display_note_fancy note =
   let created = Time.to_string note.created in
   let tag_string = String.concat ~sep:"|" note.tags in
   let formatted = Printf.sprintf "(%s) %s [%s]" created note.title tag_string in
   print_endline formatted;
   print_endline note.content
-
-let display_note note = print_endline note.title
