@@ -1,5 +1,19 @@
 open Core
 
+let show_config = 
+  Command.basic ~summary: "display the configuration"
+    ~readme: (fun () -> "
+This config subcommand will display the currently loaded
+configuration as JSON")
+    Command.Param.(
+       map (anon (maybe ("name" %: string))) ~f:(
+        fun name () ->
+            let cfg = Config.read in
+            (Config.initialize cfg) ;
+            print_endline (Config.to_string cfg) ;
+        )
+    )
+
 let list_notes =
   Command.basic ~summary: "list existing notes"
     ~readme: (fun () -> "
@@ -22,10 +36,11 @@ let delete_note =
        map (anon (maybe ("name" %: string))) ~f:(
         fun name () -> 
             print_endline "creating a new note" ;
-        )       
+        )
     )
 
 let command = Command.group ~summary:"list" [ 
+        ("config", show_config) ;
         ("list", list_notes) ;
         ("delete", delete_note)
     ]
