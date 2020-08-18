@@ -17,7 +17,7 @@ tags: ["misc", "note taking"]
 
 # Hello World!
 
-Today will be a nice day.
+Today will be a nice day 🐪.
 ```
 
 ## Configuration
