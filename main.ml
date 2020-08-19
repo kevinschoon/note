@@ -13,20 +13,23 @@ let create_note =
       and title = anon ("title" %: string)
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
-        let content = match open_stdin with
-        | Some _ ->
-            (In_channel.input_all In_channel.stdin)
-        | None -> "" in
-        let note : Note.t =
-          { title; tags; content = content; created = Time.now () }
+        let cfg = Config.read in
+        Config.initialize cfg;
+        let slugs = Slug.of_dir cfg.state_dir in
+        let content =
+          match open_stdin with
+          | Some _ -> In_channel.input_all In_channel.stdin
+          | None -> ""
         in
-        print_endline (Note.to_string note)]
+        let note : Note.t = { title; tags; content; created = Time.now () } in
+        let next = Slug.next slugs in
+        Note.to_disk note (Filename.concat cfg.state_dir (Slug.to_string next))]
 
 let show_config =
-  (* 
-    TODO: this lib is so deeply confusing to me I cannot
-    understand how to simply write a command that takes 
-    no arguments and executes a function
+  (*
+     TODO: this lib is so deeply confusing to me I cannot
+     understand how to simply write a command that takes
+     no arguments and executes a function
   *)
   Command.basic ~summary:"display the configuration"
     ~readme:(fun () ->
@@ -52,7 +55,13 @@ let list_notes =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let notes = Note.read_notes_filtered "db" filters in
+        let cfg = Config.read in
+        Config.initialize cfg;
+        let slugs = Slug.of_dir cfg.state_dir in
+        let paths =
+          List.map ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s)) slugs
+        in
+        let notes = Note.filter (Note.read_notes paths) filters in
         List.iter ~f:(fun x -> print_endline x.title) notes]
 
 let command =
