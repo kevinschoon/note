@@ -14,7 +14,8 @@ let create_note =
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
         let content = match open_stdin with
-        | Some _ ->  ""
+        | Some _ ->
+            (In_channel.input_all In_channel.stdin)
         | None -> "" in
         let note : Note.t =
           { title; tags; content = content; created = Time.now () }
@@ -22,6 +23,11 @@ let create_note =
         print_endline (Note.to_string note)]
 
 let show_config =
+  (* 
+    TODO: this lib is so deeply confusing to me I cannot
+    understand how to simply write a command that takes 
+    no arguments and executes a function
+  *)
   Command.basic ~summary:"display the configuration"
     ~readme:(fun () ->
       "\n\
@@ -30,7 +36,7 @@ let show_config =
     Command.Param.(
       map
         (anon ("name" %: string))
-        ~f:(fun name () ->
+        ~f:(fun _ () ->
           let cfg = Config.read in
           Config.initialize cfg;
           print_endline (Config.to_string cfg)))
