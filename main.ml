@@ -38,7 +38,7 @@ let show_config =
        configuration as JSON")
     Command.Param.(
       map
-        (anon ("name" %: string))
+        (anon (sequence ("_" %: string)))
         ~f:(fun _ () ->
           let cfg = Config.read in
           Config.initialize cfg;
@@ -56,7 +56,7 @@ let list_notes =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = Config.read in
-        Config.initialize cfg;
+        (Config.initialize cfg);
         let slugs = Slug.of_dir cfg.state_dir in
         let paths =
           List.map ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s)) slugs
