@@ -23,7 +23,13 @@ let create_note =
         in
         let note : Note.t = { title; tags; content; created = Time.now () } in
         let next = Slug.next slugs in
-        Note.to_disk note (Filename.concat cfg.state_dir (Slug.to_string next))]
+        let target_file = (Filename.concat cfg.state_dir (Slug.to_string next)) in
+        let tmp_file = (Filename.temp_file "note" ".md") in
+        Note.to_disk note tmp_file ;
+        Sys.command_exn (sprintf "%s %s" (Sys.getenv_exn "EDITOR") tmp_file) ;
+        let content = In_channel.read_all tmp_file in 
+        Out_channel.write_all ~data:content target_file
+        ]
 
 let show_config =
   (*
