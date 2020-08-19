@@ -17,7 +17,7 @@ let to_string config =
         ("lock_file", Ezjsonm.string config.lock_file);
       ]
   in
-  Ezjsonm.to_string dict
+  Yaml.to_string_exn dict
 
 let of_string config_str =
   (*
@@ -51,7 +51,7 @@ let initialize config =
   ( match Sys.file_exists config_path with
   | `Yes -> ()
   | `No | `Unknown ->
-      let str_config = to_string config in
+      let str_config = (to_string config) in
       Out_channel.write_all ~data:str_config config_path );
   (* create the state directory if it is missing *)
   ( match Sys.file_exists config.state_dir with

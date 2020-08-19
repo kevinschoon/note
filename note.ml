@@ -9,17 +9,14 @@ type t = {
 }
 
 let to_string note =
-    let dict = Ezjsonm.dict [
-        ("title", Ezjsonm.string note.title) ;
-        ("tags", Ezjsonm.strings note.tags) ;
-    ] in
-    let front_matter = Ezjsonm.to_string dict in
-    String.concat ~sep: "\n" [
-     "---" ;
-     front_matter ; 
-     "---" ;
-     note.content ;
-    ]
+  let dict =
+    Ezjsonm.dict
+      [
+        ("title", Ezjsonm.string note.title); ("tags", Ezjsonm.strings note.tags);
+      ]
+  in
+  let front_matter = Yaml.to_string_exn dict in
+  String.concat ~sep:"\n" [ "---"; front_matter; "---"; note.content ]
 
 let get_title dict =
   let title = List.find ~f:(fun (key, _) -> equal_string key "title") dict in
@@ -65,8 +62,7 @@ let read_note path =
   let note_str = In_channel.read_all path in
   of_string note_str
 
-let read_notes paths =
-  List.filter_map ~f:read_note paths
+let read_notes paths = List.filter_map ~f:read_note paths
 
 (* TODO: some how core List.mem does not work?!?!?! *)
 let filter_note_by_tags note tags =
@@ -93,9 +89,9 @@ let filter notes filters =
         List.filter ~f:(fun note -> filter_note_by_tags note filters) notes
   else notes
 
-let to_disk note path = 
-    (print_endline path) ;
-    Out_channel.write_all path ~data:(to_string note)
+let to_disk note path =
+  print_endline path;
+  Out_channel.write_all path ~data:(to_string note)
 
 let display_note_fancy note =
   let created = Time.to_string note.created in
