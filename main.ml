@@ -114,15 +114,40 @@ let edit_note =
             (Io.edit path );
         | _ -> failwith "too many results"]
 
+
+let delete_note =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"delete an existing note"
+    ~readme:(fun () -> "\ndelete an existing note\n       ")
+    [%map_open
+      let filters = anon (sequence ("filter" %: string)) in
+      fun () ->
+        let cfg = Config.read in
+        Config.initialize cfg;
+        let slugs = Slug.of_dir cfg.state_dir in
+        let paths =
+          List.map
+            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            slugs
+        in
+        let notes = Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters in
+        match List.length notes with
+        | 0 -> failwith "no note found"
+        | 1 ->
+            let (path, note) = List.nth_exn notes 0 in
+            (* TODO: prompt for confirmation *)
+            Unix.remove path
+        | _ -> failwith "too many results"]
+
 let command =
-  Command.group ~summary:"note"
-    ~readme:(fun () -> "\nNote is a simple CLI based note taking application")
+  Command.group ~summary:"Note is a simple CLI based note taking application"
     [
       ("cat", cat_note);
       ("create", create_note);
       ("config", show_config);
+      ("delete", delete_note);
       ("edit", edit_note);
-      ("list", list_notes);
+      ("ls", list_notes);
     ]
 
 let () = Command.run command
