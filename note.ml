@@ -89,10 +89,6 @@ let filter notes filters =
         List.filter ~f:(fun note -> filter_note_by_tags note filters) notes
   else notes
 
-let to_disk note path =
-  print_endline path;
-  Out_channel.write_all path ~data:(to_string note)
-
 let display_note_fancy note =
   let created = Time.to_string note.created in
   let tag_string = String.concat ~sep:"|" note.tags in
