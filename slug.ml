@@ -1,6 +1,6 @@
 open Core
 
-type t = (Date.t * int)
+type t = Date.t * int
 
 let to_string slug =
   let time, index = slug in
@@ -16,13 +16,11 @@ let of_string slug_str =
     int_of_string (List.nth_exn split 2) )
 
 let of_dir dir_name =
-    let file_names = Sys.ls_dir dir_name in
-    List.map ~f: (fun name -> of_string name) file_names
+  let file_names = Sys.ls_dir dir_name in
+  List.map ~f:(fun name -> of_string name) file_names
 
 let next slugs =
-  (*
-    find all slugs for today (00:00:00 -> 23:59:59)
-  *)
+  (* find all slugs for today (00:00:00 -> 23:59:59) *)
   let now = Time.now () in
   let today = Time.to_date ~zone:Time.Zone.utc now in
   let tomorrow = Date.add_days today 1 in
@@ -32,8 +30,9 @@ let next slugs =
       slugs
   in
   let next_int =
-    (List.fold ~init:0
+    List.fold ~init:(-1)
       ~f:(fun accm (_, i) -> if i > accm then i else accm)
-      filtered)+1
+      filtered
+    + 1
   in
   (today, next_int)
