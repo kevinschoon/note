@@ -64,6 +64,13 @@ let read_note path =
 
 let read_notes paths = List.filter_map ~f:read_note paths
 
+let read_notes_preserve_paths paths =
+  List.filter_map
+    ~f:(fun path ->
+      let note = read_note path in
+      match note with Some n -> Some (path, n) | None -> None)
+    paths
+
 (* TODO: some how core List.mem does not work?!?!?! *)
 let filter_note_by_tags note tags =
   match
@@ -87,6 +94,21 @@ let filter notes filters =
     | None ->
         (* now we filter by tags *)
         List.filter ~f:(fun note -> filter_note_by_tags note filters) notes
+  else notes
+
+let filter_with_paths notes filters =
+  if List.length filters > 0 then
+    (* first look by name *)
+    let by_name =
+      List.find
+        ~f:(fun (path, n) -> equal_string n.title (List.nth_exn filters 0))
+        notes
+    in
+    match by_name with
+    | Some note -> [ note ]
+    | None ->
+        (* now we filter by tags *)
+        List.filter ~f:(fun (path, n) -> filter_note_by_tags n filters) notes
   else notes
 
 let display_note_fancy note =

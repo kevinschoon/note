@@ -23,15 +23,9 @@ let create_note =
         in
         let note : Note.t = { title; tags; content; created = Time.now () } in
         let next = Slug.next slugs in
-        let target_file = (Filename.concat cfg.state_dir (Slug.to_string next)) in
-            let init_content = (Note.to_string note) in
-            Io.create_edit_write  init_content target_file ;
-        ]
-        (*
-        Note.to_disk note tmp_file ;
-        Sys.command_exn (sprintf "%s %s" (Sys.getenv_exn "EDITOR") tmp_file) ;
-        let content = In_channel.read_all tmp_file in 
-        Out_channel.write_all ~data:content target_file*)
+        let target_file = Filename.concat cfg.state_dir (Slug.to_string next) in
+        let init_content = Note.to_string note in
+        Io.create_edit_write init_content target_file]
 
 let show_config =
   (*
@@ -64,16 +58,71 @@ let list_notes =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = Config.read in
-        (Config.initialize cfg);
+        Config.initialize cfg;
         let slugs = Slug.of_dir cfg.state_dir in
         let paths =
-          List.map ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s)) slugs
+          List.map
+            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
         List.iter ~f:(fun x -> print_endline x.title) notes]
 
+let cat_note =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"write a single note to stdout"
+    ~readme:(fun () -> "\ncat a single note to stdout\n       ")
+    [%map_open
+      let filters = anon (sequence ("filter" %: string)) in
+      fun () ->
+        let cfg = Config.read in
+        Config.initialize cfg;
+        let slugs = Slug.of_dir cfg.state_dir in
+        let paths =
+          List.map
+            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            slugs
+        in
+        let notes = Note.filter (Note.read_notes paths) filters in
+        match List.length notes with
+        | 0 -> failwith "no note found"
+        | 1 ->
+            let note = List.nth_exn notes 0 in
+            print_endline (Note.to_string note)
+        | _ -> failwith "too many results"]
+
+let edit_note =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"edit an existing note"
+    ~readme:(fun () -> "\nedit an existing note\n       ")
+    [%map_open
+      let filters = anon (sequence ("filter" %: string)) in
+      fun () ->
+        let cfg = Config.read in
+        Config.initialize cfg;
+        let slugs = Slug.of_dir cfg.state_dir in
+        let paths =
+          List.map
+            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            slugs
+        in
+        let notes = Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters in
+        match List.length notes with
+        | 0 -> failwith "no note found"
+        | 1 ->
+            let (path, note) = List.nth_exn notes 0 in
+            (Io.edit path );
+        | _ -> failwith "too many results"]
+
 let command =
-  Command.group ~summary:"list"
-    [ ("create", create_note); ("config", show_config); ("list", list_notes) ]
+  Command.group ~summary:"note"
+    ~readme:(fun () -> "\nNote is a simple CLI based note taking application")
+    [
+      ("cat", cat_note);
+      ("create", create_note);
+      ("config", show_config);
+      ("edit", edit_note);
+      ("list", list_notes);
+    ]
 
 let () = Command.run command
