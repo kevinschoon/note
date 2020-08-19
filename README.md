@@ -17,7 +17,7 @@ tags: ["misc", "note taking"]
 
 # Hello World!
 
-Today will be a nice day 🐪.
+🐪 Today will be a nice day 🐪.
 ```
 
 ## Configuration
@@ -31,4 +31,15 @@ lock_file: ~/.local/share/note/note.lock
 
 ## State Dir
 
-Notes are stored as flat files in the `state_dir` directory where each note is a flat file.
+Each note is stored as a flat file inside the `state_dir` with a slug that corresponds to the 
+date (YYYYMMDD) on which it was created. If multiple notes are created on one day, an index will
+be appended to the file.
+
+```bash
+$ tree ~/.local/share/note/
+/home/kevin/.local/share/note/
+├── note-20200818-1.md
+├── note-20200819-1.md
+├── note-20200819-2.md
+└── note-20200819-3.md
+```
