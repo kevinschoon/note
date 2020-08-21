@@ -15,8 +15,8 @@ let of_string slug_str =
   ( Date.parse ~fmt:"%Y%m%d" (List.nth_exn split 1),
     int_of_string (List.nth_exn split 2) )
 
-let of_dir dir_name =
-  let file_names = Sys.ls_dir dir_name in
+let load path =
+  let file_names = Sys.ls_dir path in
   List.map ~f:(fun name -> of_string name) file_names
 
 let next slugs =

@@ -22,7 +22,7 @@ let create_note =
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
         let cfg = (Config.get_exn (init_config (None))) in
-        let slugs = Slug.of_dir (cfg "state_dir") in
+        let slugs = Slug.load (cfg "state_dir") in
         let content =
           match open_stdin with
           | Some _ -> In_channel.input_all In_channel.stdin
@@ -64,7 +64,7 @@ let list_notes =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.of_dir (cfg "state_dir") in
+        let slugs = Slug.load (cfg "state_dir") in
         let paths =
           List.map
             ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
@@ -81,7 +81,7 @@ let cat_note =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.of_dir (cfg "state_dir") in
+        let slugs = Slug.load (cfg "state_dir") in
         let paths =
           List.map
             ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
@@ -103,7 +103,7 @@ let edit_note =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.of_dir (cfg "state_dir") in
+        let slugs = Slug.load (cfg "state_dir") in
         let paths =
           List.map
             ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
@@ -127,7 +127,7 @@ let delete_note =
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
         let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.of_dir (cfg "state_dir") in
+        let slugs = Slug.load (cfg "state_dir") in
         let paths =
           List.map
             ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
