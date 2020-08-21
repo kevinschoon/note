@@ -15,24 +15,31 @@ let create_note =
       let open_stdin =
         flag "stdin" (optional bool)
           ~doc:"read content from stdin and copy it into the note body"
-      and open_editor =
-        flag "edit" (optional bool)
-          ~doc:"open the note in your $EDITOR after creation"
       and title = anon ("title" %: string)
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
-        let cfg = (Config.get_exn (init_config (None))) in
-        let slugs = Slug.load (cfg "state_dir") in
-        let content =
-          match open_stdin with
-          | Some _ -> In_channel.input_all In_channel.stdin
-          | None -> ""
+        let open Config in
+        let cfg = (init_config None) in
+        let next_slug = Slug.next (Slug.load (get_exn cfg "state_dir")) in
+        let target_file =
+          Filename.concat (get_exn cfg "state_dir") (Slug.to_string next_slug)
         in
-        let note : Note.t = { title; tags; content; created = Time.now () } in
-        let next = Slug.next slugs in
-        let target_file = Filename.concat (cfg "state_dir") (Slug.to_string next) in
-        let init_content = Note.to_string note in
-        Io.create_edit_write init_content target_file]
+        match open_stdin with
+        | Some _ ->
+            (* reading from stdin so write directly to note *)
+            let content = In_channel.input_all In_channel.stdin in
+            let note : Note.t =
+              { title; tags; content; created = Time.now () }
+            in
+            Io.create ~callback:(get cfg "on_modification") ~content: (Note.to_string note) target_file ;
+
+        | None ->
+            let note : Note.t =
+              { title; tags; content = ""; created = Time.now () }
+            in
+            let init_content = Note.to_string note in
+            Io.create_on_change ~callback:(get cfg "on_modification") ~editor: (get_exn cfg "editor")
+              init_content target_file]
 
 let show_config =
   (*
@@ -49,8 +56,9 @@ let show_config =
       map
         (anon (sequence ("_" %: string)))
         ~f:(fun _ () ->
+          let open Config in
           let cfg = init_config None in
-          print_endline (Config.to_string cfg)))
+          print_endline (to_string cfg)))
 
 let list_notes =
   let open Command.Let_syntax in
@@ -63,11 +71,12 @@ let list_notes =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.load (cfg "state_dir") in
+        let open Config in
+        let cfg = (init_config None) in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
@@ -80,11 +89,12 @@ let cat_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.load (cfg "state_dir") in
+        let open Config in
+        let cfg = (init_config None) in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
@@ -102,11 +112,12 @@ let edit_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.load (cfg "state_dir") in
+        let open Config in
+        let cfg = (init_config None) in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes =
@@ -116,7 +127,7 @@ let edit_note =
         | 0 -> failwith "no note found"
         | 1 ->
             let path, note = List.nth_exn notes 0 in
-            Io.edit path
+            Io.edit ~callback: (get cfg "on_modification") ~editor: (get_exn cfg "editor") path
         | _ -> failwith "too many results"]
 
 let delete_note =
@@ -126,11 +137,12 @@ let delete_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = (Config.get_exn (init_config None)) in
-        let slugs = Slug.load (cfg "state_dir") in
+        let open Config in
+        let cfg = (init_config None) in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes =

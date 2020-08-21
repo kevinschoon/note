@@ -48,6 +48,8 @@ let get config key =
   match key with
   | "state_dir" -> Some config.state_dir
   | "lock_file" -> Some config.lock_file
+  | "editor" -> config.editor
+  | "on_modification" -> config.on_modification
   | _ -> None
 
 let get_exn config key =
