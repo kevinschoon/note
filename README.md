@@ -2,10 +2,6 @@
 
 `Note` is a simple CLI based note taking application. 
 
-## Usage
-
-`Note` is self-documenting, all of it's commands can be explored by running `note help ...`
-
 ## The Anatonmy of a Note
 
 A note is simply a markdown file, that has a `front-matter` at the head of the document. Front-matter is some structured data enclosed in a pair of `---`, we currently support yaml (and thus json). Everything above the front-matter section will be discarded and everything below it is considered
@@ -21,6 +17,10 @@ tags: [ocaml, programming]
 
 🐪 Today will be a nice day 🐪.
 ```
+
+## Usage
+
+`Note` is self-documenting, all of it's commands can be explored by running `note help ...`
 
 ## Configuration
 
