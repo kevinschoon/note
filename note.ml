@@ -1,13 +1,17 @@
 open Core
 open Stdio
 
-type t = {
-  title : string;
-  content : string;
-  tags : string list;
-}
+type t = { title : string; tags : string list; content : string }
 
-let to_string note =
+let build ~title ~tags ~content = { title; tags; content }
+
+let get_title t = t.title
+
+let get_content t = t.content
+
+let get_tags t = t.tags
+
+let to_string ~note =
   let dict =
     Ezjsonm.dict
       [
@@ -17,94 +21,77 @@ let to_string note =
   let front_matter = Yaml.to_string_exn dict in
   String.concat ~sep:"\n" [ "---"; front_matter; "---"; note.content ]
 
-let get_title dict =
-  let title = List.find ~f:(fun (key, _) -> equal_string key "title") dict in
-  match title with Some (_, v) -> Ezjsonm.get_string v | None -> ""
-
-let get_tags dict =
-  let title = List.find ~f:(fun (key, _) -> equal_string key "tags") dict in
-  match title with Some (_, v) -> Ezjsonm.get_strings v | None -> []
-
-(* TODO *)
-let get_created dict = Time.parse "20010102" ~fmt:"%Y%m%d" ~zone:Time.Zone.utc
-
-let get_content note_str =
-  let indexes =
-    String.substr_index_all ~may_overlap:true ~pattern:"---" note_str
-  in
-  if List.length indexes >= 2 then
-    String.slice note_str (List.nth_exn indexes 1 + 3) (String.length note_str)
-  else ""
-
-let of_string note_str =
-  let indexes =
-    String.substr_index_all ~may_overlap:true ~pattern:"---" note_str
-  in
+let of_string ~data =
+  let indexes = String.substr_index_all ~may_overlap:true ~pattern:"---" data in
   if List.length indexes >= 2 then
     let meta_str =
-      String.slice note_str
-        (List.nth_exn indexes 0 + 3)
-        (List.nth_exn indexes 1)
+      String.slice data (List.nth_exn indexes 0 + 3) (List.nth_exn indexes 1)
+    in
+    let content =
+      String.slice data (List.nth_exn indexes 1 + 3) (String.length data)
     in
     let value = Yaml.of_string_exn meta_str in
-    let dict = Ezjsonm.get_dict value in
-    Some
-      {
-        title = get_title dict;
-        content = get_content note_str;
-        tags = get_tags dict;
-      }
+    let title = Ezjsonm.get_string (Ezjsonm.find value [ "title" ]) in
+    let tags = Ezjsonm.get_strings (Ezjsonm.find value [ "tags" ]) in
+    Some { title; content; tags }
   else None
 
-let read_note path =
-  let note_str = In_channel.read_all path in
-  of_string note_str
+let of_string_exn ~data =
+  let note = of_string ~data in
+  match note with Some note -> note | None -> failwith "bad note content"
 
-let read_notes paths = List.filter_map ~f:read_note paths
+let read_note ~path =
+  let data = In_channel.read_all path in
+  of_string ~data
 
-let read_notes_preserve_paths paths =
-  List.filter_map
-    ~f:(fun path ->
-      let note = read_note path in
-      match note with Some n -> Some (path, n) | None -> None)
-    paths
+let read_note_exn ~path =
+  let note = read_note ~path in
+  match note with Some note -> note | None -> failwith "failed to read note"
 
-(* TODO: some how core List.mem does not work?!?!?! *)
-let filter_note_by_tags note tags =
-  match
-    List.find
-      ~f:(fun tag -> List.count ~f:(fun x -> equal_string x tag) note.tags > 0)
-      tags
-  with
-  | Some x -> true
-  | None -> false
+let read_notes ~paths = List.map ~f:(fun path -> read_note_exn ~path) paths
+
+let read_notes_with_paths ~paths =
+  List.map ~f:(fun path -> (read_note_exn ~path, path)) paths
 
 let filter notes filters =
-  if List.length filters > 0 then
-    (* first look by name *)
-    let by_name =
-      List.find
-        ~f:(fun n -> equal_string n.title (List.nth_exn filters 0))
-        notes
-    in
-    match by_name with
-    | Some note -> [ note ]
-    | None ->
-        (* now we filter by tags *)
-        List.filter ~f:(fun note -> filter_note_by_tags note filters) notes
-  else notes
+  if List.length filters = 0 then notes
+    (* return everything if there are no filters *)
+  else
+    List.fold ~init:[]
+      ~f:(fun accm note ->
+        (* first look by name *)
+        let matches =
+          List.count ~f:(fun filter -> String.equal note.title filter) filters
+        in
+        if matches > 0 then note :: accm
+        else
+          (* then compare each tag with each filter *)
+          let matches =
+            List.count
+              ~f:(fun filter -> List.mem ~equal:String.equal note.tags filter)
+              filters
+          in
+          if matches > 0 then note :: accm else accm)
+      notes
 
 let filter_with_paths notes filters =
-  if List.length filters > 0 then
-    (* first look by name *)
-    let by_name =
-      List.find
-        ~f:(fun (path, n) -> equal_string n.title (List.nth_exn filters 0))
-        notes
-    in
-    match by_name with
-    | Some note -> [ note ]
-    | None ->
-        (* now we filter by tags *)
-        List.filter ~f:(fun (path, n) -> filter_note_by_tags n filters) notes
-  else notes
+  if List.length filters = 0 then notes
+    (* return everything if there are no filters *)
+  else
+    List.fold
+      ~init:([] : (t * string) list)
+      ~f:(fun accm (note, path) ->
+        (* first look by name *)
+        let matches =
+          List.count ~f:(fun filter -> String.equal note.title filter) filters
+        in
+        if matches > 0 then (note, path) :: accm
+        else
+          (* then compare each tag with each filter *)
+          let matches =
+            List.count
+              ~f:(fun filter -> List.mem ~equal:String.equal note.tags filter)
+              filters
+          in
+          if matches > 0 then (note, path) :: accm else accm)
+      notes
