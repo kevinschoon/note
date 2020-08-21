@@ -1,6 +1,11 @@
 open Core
 
-type t = { state_dir : string; lock_file : string; editor : string option }
+type t = {
+  state_dir : string;
+  lock_file : string;
+  editor : string option;
+  on_modification : string option;
+}
 
 let default_path =
   Filename.concat (Sys.home_directory ()) ".config/note/config.yaml"
@@ -11,6 +16,7 @@ let default_config =
     state_dir = Filename.concat home_dir ".local/share/note";
     lock_file = Filename.concat home_dir ".local/share/note.lock";
     editor = None;
+    on_modification = None;
   }
 
 let to_string config =
@@ -29,12 +35,14 @@ let of_string config_str =
   let value = Yaml.of_string_exn config_str in
   let state_dir = Ezjsonm.get_string (Ezjsonm.find value [ "state_dir" ]) in
   let lock_file = Ezjsonm.get_string (Ezjsonm.find value [ "lock_file" ]) in
-  let editor =
-    if Ezjsonm.mem value [ "editor" ] then
-      Some (Ezjsonm.get_string (Ezjsonm.find value [ "editor" ]))
+  let string_or_none key =
+    if Ezjsonm.mem value [ key ] then
+      Some (Ezjsonm.get_string (Ezjsonm.find value [ key ]))
     else None
   in
-  { state_dir; lock_file; editor }
+  let editor = string_or_none "editor" in
+  let on_modification = string_or_none "on_modification" in
+  { state_dir; lock_file; editor; on_modification }
 
 let get config key =
   match key with
@@ -71,14 +79,21 @@ let initialize path config =
   ()
 
 let resolve config =
-    let editor = match config.editor with
+  let editor =
+    match config.editor with
     | Some name -> Some name
-    | None -> (Sys.getenv "NOTE_EDITOR") in
-    { state_dir = config.state_dir ; lock_file = config.lock_file; editor = editor }
+    | None -> Sys.getenv "NOTE_EDITOR"
+  in
+  {
+    editor;
+    state_dir = config.state_dir;
+    lock_file = config.lock_file;
+    on_modification = config.on_modification;
+  }
 
 let read_config path =
   match Sys.file_exists path with
   | `Yes ->
       let config_str = In_channel.read_all path in
-      (resolve (of_string config_str))
-  | `No | `Unknown -> (resolve default_config)
+      resolve (of_string config_str)
+  | `No | `Unknown -> resolve default_config
