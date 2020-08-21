@@ -1,5 +1,13 @@
 open Core
 
+let init_config path =
+  let config_path =
+    match path with Some path -> path | None -> Config.default_path
+  in
+  let config = Config.read_config config_path in
+  Config.initialize config_path config;
+  config
+
 let create_note =
   let open Command.Let_syntax in
   Command.basic ~summary:"create a new note"
@@ -13,9 +21,8 @@ let create_note =
       and title = anon ("title" %: string)
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
-        let cfg = Config.read in
-        Config.initialize cfg;
-        let slugs = Slug.of_dir cfg.state_dir in
+        let cfg = (Config.get_exn (init_config (None))) in
+        let slugs = Slug.of_dir (cfg "state_dir") in
         let content =
           match open_stdin with
           | Some _ -> In_channel.input_all In_channel.stdin
@@ -23,7 +30,7 @@ let create_note =
         in
         let note : Note.t = { title; tags; content; created = Time.now () } in
         let next = Slug.next slugs in
-        let target_file = Filename.concat cfg.state_dir (Slug.to_string next) in
+        let target_file = Filename.concat (cfg "state_dir") (Slug.to_string next) in
         let init_content = Note.to_string note in
         Io.create_edit_write init_content target_file]
 
@@ -42,8 +49,7 @@ let show_config =
       map
         (anon (sequence ("_" %: string)))
         ~f:(fun _ () ->
-          let cfg = Config.read in
-          Config.initialize cfg;
+          let cfg = init_config None in
           print_endline (Config.to_string cfg)))
 
 let list_notes =
@@ -57,12 +63,11 @@ let list_notes =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = Config.read in
-        Config.initialize cfg;
-        let slugs = Slug.of_dir cfg.state_dir in
+        let cfg = (Config.get_exn (init_config None)) in
+        let slugs = Slug.of_dir (cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
@@ -75,12 +80,11 @@ let cat_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = Config.read in
-        Config.initialize cfg;
-        let slugs = Slug.of_dir cfg.state_dir in
+        let cfg = (Config.get_exn (init_config None)) in
+        let slugs = Slug.of_dir (cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
             slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
@@ -98,22 +102,22 @@ let edit_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = Config.read in
-        Config.initialize cfg;
-        let slugs = Slug.of_dir cfg.state_dir in
+        let cfg = (Config.get_exn (init_config None)) in
+        let slugs = Slug.of_dir (cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters in
+        let notes =
+          Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters
+        in
         match List.length notes with
         | 0 -> failwith "no note found"
         | 1 ->
-            let (path, note) = List.nth_exn notes 0 in
-            (Io.edit path );
+            let path, note = List.nth_exn notes 0 in
+            Io.edit path
         | _ -> failwith "too many results"]
-
 
 let delete_note =
   let open Command.Let_syntax in
@@ -122,19 +126,20 @@ let delete_note =
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
-        let cfg = Config.read in
-        Config.initialize cfg;
-        let slugs = Slug.of_dir cfg.state_dir in
+        let cfg = (Config.get_exn (init_config None)) in
+        let slugs = Slug.of_dir (cfg "state_dir") in
         let paths =
           List.map
-            ~f:(fun s -> Filename.concat cfg.state_dir (Slug.to_string s))
+            ~f:(fun s -> Filename.concat (cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters in
+        let notes =
+          Note.filter_with_paths (Note.read_notes_preserve_paths paths) filters
+        in
         match List.length notes with
         | 0 -> failwith "no note found"
         | 1 ->
-            let (path, note) = List.nth_exn notes 0 in
+            let path, note = List.nth_exn notes 0 in
             (* TODO: prompt for confirmation *)
             Unix.remove path
         | _ -> failwith "too many results"]
