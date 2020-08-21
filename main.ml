@@ -10,7 +10,7 @@ let init_config path =
 
 let create_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"Create a New Note"
+  Command.basic ~summary:"create a new note"
     ~readme:(fun () ->
       "\n\
        This command will create a new note and save it to disk\n\
@@ -52,7 +52,7 @@ let create_note =
 
 let show_config =
   let open Command.Let_syntax in
-  Command.basic ~summary:"Display the Configuration"
+  Command.basic ~summary:"display the configuration"
     ~readme:(fun () ->
       "\n\
        This command will display the current configuration and may also\n\
@@ -74,7 +74,7 @@ let show_config =
 
 let list_notes =
   let open Command.Let_syntax in
-  Command.basic ~summary:"List Notes"
+  Command.basic ~summary:"list notes"
     ~readme:(fun () ->
       "\n\
        This command will list notes stored in the state_directory, filters may \
@@ -102,7 +102,7 @@ let list_notes =
 
 let cat_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"Write a Note to Stdout"
+  Command.basic ~summary:"write a note to stdout"
     ~readme:(fun () ->
       "\n\
        This command will write a single note to stdout, if more than\n\
@@ -133,7 +133,7 @@ let cat_note =
 
 let edit_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"Edit an Existing Note"
+  Command.basic ~summary:"edit an existing note"
     ~readme:(fun () ->
       "\n\
        This command will select a note based on your filter criteria and open \
@@ -172,7 +172,7 @@ let edit_note =
 
 let delete_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"Delete an Existing Note"
+  Command.basic ~summary:"delete an existing note"
     ~readme:(fun () ->
       "\n\
        This command will delete the note that matches the filter criteria. If \
