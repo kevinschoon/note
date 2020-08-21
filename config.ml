@@ -20,13 +20,15 @@ let default_config =
   }
 
 let to_string config =
-  let editor = match config.editor with Some name -> name | None -> "" in
+  let editor = match config.editor with Some value -> value | None -> "" in
+  let on_mod = match config.on_modification with Some value -> value | None -> "" in
   let dict =
     Ezjsonm.dict
       [
         ("state_dir", Ezjsonm.string config.state_dir);
         ("lock_file", Ezjsonm.string config.lock_file);
         ("editor", Ezjsonm.string editor);
+        ("on_modification", Ezjsonm.string on_mod);
       ]
   in
   Yaml.to_string_exn dict

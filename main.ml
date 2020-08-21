@@ -40,23 +40,18 @@ let create_note =
               ~editor:(get_exn cfg "editor") init_content target_file]
 
 let show_config =
-  (*
-     TODO: this lib is so deeply confusing to me I cannot
-     understand how to simply write a command that takes
-     no arguments and executes a function
-  *)
+  let open Command.Let_syntax in
   Command.basic ~summary:"display the configuration"
-    ~readme:(fun () ->
-      "\n\
-       This config subcommand will display the currently loaded\n\
-       configuration as JSON")
-    Command.Param.(
-      map
-        (anon (sequence ("_" %: string)))
-        ~f:(fun _ () ->
-          let open Config in
-          let cfg = init_config None in
-          print_endline (to_string cfg)))
+    [%map_open
+      let key =
+        flag "get" (optional string) ~doc:"get a config value"
+      in
+      fun () ->
+        let open Config in
+        let cfg = init_config None in
+        match key with
+        | Some key -> print_string (get_exn cfg key)
+        | None -> print_string (to_string cfg)]
 
 let list_notes =
   let open Command.Let_syntax in

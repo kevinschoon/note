@@ -17,7 +17,13 @@ let of_string slug_str =
 
 let load path =
   let file_names = Sys.ls_dir path in
-  List.map ~f:(fun name -> of_string name) file_names
+  List.filter_map
+    ~f:(fun name ->
+      (* ignore any files that do not match the substring note- *)
+      match String.substr_index ~pattern:"note-" name with
+      | Some _ -> Some (of_string name)
+      | None -> None)
+    file_names
 
 let next slugs =
   (* find all slugs for today (00:00:00 -> 23:59:59) *)
