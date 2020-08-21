@@ -29,13 +29,13 @@ let create_note =
             (* reading from stdin so write directly to note *)
             let content = In_channel.input_all In_channel.stdin in
             let note : Note.t =
-              { title; tags; content; created = Time.now () }
+              { title; tags; content; }
             in
             Io.create ~callback:(get cfg "on_modification") ~content: (Note.to_string note) target_file ;
 
         | None ->
             let note : Note.t =
-              { title; tags; content = ""; created = Time.now () }
+              { title; tags; content = ""; }
             in
             let init_content = Note.to_string note in
             Io.create_on_change ~callback:(get cfg "on_modification") ~editor: (get_exn cfg "editor")

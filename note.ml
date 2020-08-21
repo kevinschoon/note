@@ -5,7 +5,6 @@ type t = {
   title : string;
   content : string;
   tags : string list;
-  created : Time.t;
 }
 
 let to_string note =
@@ -54,7 +53,6 @@ let of_string note_str =
         title = get_title dict;
         content = get_content note_str;
         tags = get_tags dict;
-        created = get_created dict;
       }
   else None
 
@@ -110,10 +108,3 @@ let filter_with_paths notes filters =
         (* now we filter by tags *)
         List.filter ~f:(fun (path, n) -> filter_note_by_tags n filters) notes
   else notes
-
-let display_note_fancy note =
-  let created = Time.to_string note.created in
-  let tag_string = String.concat ~sep:"|" note.tags in
-  let formatted = Printf.sprintf "(%s) %s [%s]" created note.title tag_string in
-  print_endline formatted;
-  print_endline note.content
