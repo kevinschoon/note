@@ -10,7 +10,18 @@ let init_config path =
 
 let create_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"create a new note"
+  Command.basic ~summary:"Create a New Note"
+    ~readme:(fun () ->
+      "\n\
+       This command will create a new note and save it to disk\n\
+       If the on_modification option is configured, it will run\n\
+       that callback if the new note is saved from your editor.\n\n\
+       EXAMPLES:\n\n\
+       # create a note with tags\n\
+       note create \"Vim Commands\" programming linux fuu bar\n\n\
+       # write a file from stdin into a new note\n\
+       cat some_file.txt | note create -stdin \"Some File\" baz qux\n\
+      \  ")
     [%map_open
       let open_stdin =
         flag "stdin" (optional bool)
@@ -41,11 +52,19 @@ let create_note =
 
 let show_config =
   let open Command.Let_syntax in
-  Command.basic ~summary:"display the configuration"
+  Command.basic ~summary:"Display the Configuration"
+    ~readme:(fun () ->
+      "\n\
+       This command will display the current configuration and may also\n\
+       be used to retrieve a config value.\n\n\
+       EXAMPLES:\n\n\
+       # get the current configuration\n\
+       note config\n\n\
+       # get a specific value from the configuration\n\
+       note config -get state_dir\n\n\n\
+      \  ")
     [%map_open
-      let key =
-        flag "get" (optional string) ~doc:"get a config value"
-      in
+      let key = flag "get" (optional string) ~doc:"get a config value" in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -55,12 +74,17 @@ let show_config =
 
 let list_notes =
   let open Command.Let_syntax in
-  Command.basic ~summary:"list notes"
+  Command.basic ~summary:"List Notes"
     ~readme:(fun () ->
       "\n\
-       The list subcommand will list one or more notes stored\n\
-       in the state directory, you can apply one or more filters\n\
-       to reduce the number of results that are returned\n")
+       This command will list notes stored in the state_directory, filters may \
+       be applied to limit the results\n\n\
+       EXAMPLES:\n\n\
+       # list all notes\n\
+       note config\n\n\
+       # list notes matching fuu or bar\n\
+       note config fuu bar\n\n\
+      \      ")
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
@@ -78,8 +102,15 @@ let list_notes =
 
 let cat_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"write a single note to stdout"
-    ~readme:(fun () -> "\ncat a single note to stdout\n       ")
+  Command.basic ~summary:"Write a Note to Stdout"
+    ~readme:(fun () ->
+      "\n\
+       This command will write a single note to stdout, if more than\n\
+       one note is returned it will raise an exception.\n\n\
+       EXAMPLES:\n\n\
+       # write the fuubar note to stdout\n\
+       note cat fuubar\n\
+      \    ")
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
@@ -102,8 +133,19 @@ let cat_note =
 
 let edit_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"edit an existing note"
-    ~readme:(fun () -> "\nedit an existing note\n       ")
+  Command.basic ~summary:"Edit an Existing Note"
+    ~readme:(fun () ->
+      "\n\
+       This command will select a note based on your filter criteria and open \
+       it in your\n\
+       configured $EDITOR. If the on_modification option is configured, it \
+       will run that callback if the note\n\
+       is modified. If none or more than one note is returned it will raise an \
+       exception.\n\n\
+       EXAMPLES:\n\n\
+       # edit the fuubar note\n\
+       note edit fuubar\n\n\
+      \    ")
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
@@ -130,8 +172,16 @@ let edit_note =
 
 let delete_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"delete an existing note"
-    ~readme:(fun () -> "\ndelete an existing note\n       ")
+  Command.basic ~summary:"Delete an Existing Note"
+    ~readme:(fun () ->
+      "\n\
+       This command will delete the note that matches the filter criteria. If \
+       none or more than\n\
+       one note is returned it will raise an exception.\n\n\
+       EXAMPLES:\n\n\
+       # delete the fuubar note\n\
+       note delete fuubar\n\
+      \    ")
     [%map_open
       let filters = anon (sequence ("filter" %: string)) in
       fun () ->
