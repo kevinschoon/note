@@ -2,7 +2,7 @@
 
 `Note` is a simple CLI based note taking application. 
 
-## The Anatonmy of a Note
+## The Anatomy of a Note
 
 A note is simply a markdown file, that has a `front-matter` at the head of the document. Front-matter is some structured data enclosed in a pair of `---`, we currently support yaml (and thus json). Everything above the front-matter section will be discarded and everything below it is considered
 the body of a given note.
