@@ -1,6 +1,13 @@
 (lang dune 2.7)
 
 (name note)
+(version 0.0.2)
+
+(generate_opam_files true)
+
+(source (github kevinschoon/note))
+(license AGPL3)
+(authors "Kevin Schoon <kevinschoon@gmail.com>")
 
 (package
  (name note)
