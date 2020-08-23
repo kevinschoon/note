@@ -1,4 +1,5 @@
 open Core
+open Note_lib
 
 let init_config path =
   let config_path =

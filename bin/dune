@@ -1,0 +1,8 @@
+(executable
+ (public_name note)
+ (name note)
+ (libraries note_lib core)
+ (preprocess
+  (pps ppx_jane)))
+ (env (dev (flags (:standard -w -32)(:standard -w -27))))
+

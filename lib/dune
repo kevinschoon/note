@@ -1,0 +1,3 @@
+(library
+ (name note_lib)
+ (libraries base core ezjsonm stdio yaml))

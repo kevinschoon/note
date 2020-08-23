@@ -1,7 +1,0 @@
-(executable
- (name main)
- (libraries base core ezjsonm stdio yaml)
- (preprocess (pps ppx_jane)))
-(env
-  (dev
-    (flags (:standard -w -32)(:standard -w -27))))
