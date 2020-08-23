@@ -8,10 +8,12 @@
 (source (github kevinschoon/note))
 (license AGPL3)
 (authors "Kevin Schoon <kevinschoon@gmail.com>")
+(maintainers "Kevin Schoon <kevinschoon@gmail.com>")
 
 (package
  (name note)
  (synopsis "Note is a simple CLI based note taking program")
+ (description "Note is a simple CLI based note taking program")
  (depends
   (base
    (>= v0.14.0))

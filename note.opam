@@ -2,6 +2,8 @@
 opam-version: "2.0"
 version: "0.0.2"
 synopsis: "Note is a simple CLI based note taking program"
+description: "Note is a simple CLI based note taking program"
+maintainer: ["Kevin Schoon <kevinschoon@gmail.com>"]
 authors: ["Kevin Schoon <kevinschoon@gmail.com>"]
 license: "AGPL3"
 homepage: "https://github.com/kevinschoon/note"
