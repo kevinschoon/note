@@ -18,7 +18,7 @@ val read_config : string -> t
 val initialize : string -> t -> unit
 (** initialize the host system with the configuration *)
 
-val get :  t -> string -> string option
+val get : t -> string -> string option
 (** returns a key-value string pair from the configuration *)
 
 val get_exn : t -> string -> string

@@ -1,6 +1,6 @@
 type t
 
-val build : title:string -> tags:string list -> content: string -> t
+val build : title:string -> tags:string list -> content:string -> t
 (** build a new note *)
 
 val get_title : t -> string
@@ -29,7 +29,7 @@ val read_note_exn : path:string -> t
 val read_notes : paths:string list -> t list
 (** read all of the note paths raising an exception of any failure *)
 
-val read_notes_with_paths : paths: string list -> (t * string) list
+val read_notes_with_paths : paths:string list -> (t * string) list
 (** read all of the note paths returning a tuple of note and it's associated path rasiing an exception on any failure *)
 
 val filter : t list -> string list -> t list

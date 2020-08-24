@@ -21,7 +21,9 @@ let default_config =
 
 let to_string config =
   let editor = match config.editor with Some value -> value | None -> "" in
-  let on_mod = match config.on_modification with Some value -> value | None -> "" in
+  let on_mod =
+    match config.on_modification with Some value -> value | None -> ""
+  in
   let dict =
     Ezjsonm.dict
       [
