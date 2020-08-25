@@ -20,17 +20,23 @@ let default_config =
   }
 
 let to_string config =
-  let editor = match config.editor with Some value -> value | None -> "" in
+  let editor =
+    match config.editor with
+    | Some value -> Ezjsonm.string value
+    | None -> Ezjsonm.unit ()
+  in
   let on_mod =
-    match config.on_modification with Some value -> value | None -> ""
+    match config.on_modification with
+    | Some value -> Ezjsonm.string value
+    | None -> Ezjsonm.unit ()
   in
   let dict =
     Ezjsonm.dict
       [
         ("state_dir", Ezjsonm.string config.state_dir);
         ("lock_file", Ezjsonm.string config.lock_file);
-        ("editor", Ezjsonm.string editor);
-        ("on_modification", Ezjsonm.string on_mod);
+        ("editor", editor);
+        ("on_modification", on_mod);
       ]
   in
   Yaml.to_string_exn dict
@@ -40,9 +46,15 @@ let of_string config_str =
   let state_dir = Ezjsonm.get_string (Ezjsonm.find value [ "state_dir" ]) in
   let lock_file = Ezjsonm.get_string (Ezjsonm.find value [ "lock_file" ]) in
   let string_or_none key =
-    if Ezjsonm.mem value [ key ] then
-      Some (Ezjsonm.get_string (Ezjsonm.find value [ key ]))
-    else None
+    match Ezjsonm.find_opt value [ key ] with
+    | Some v -> (
+        match v with
+        | `String v -> Some v
+        | `Null -> None
+        | _ ->
+            failwith
+              (sprintf "config entry %s must either be a string or NULL" key) )
+    | None -> None
   in
   let editor = string_or_none "editor" in
   let on_modification = string_or_none "on_modification" in
@@ -52,7 +64,16 @@ let get config key =
   match key with
   | "state_dir" -> Some config.state_dir
   | "lock_file" -> Some config.lock_file
-  | "editor" -> config.editor
+  | "editor" -> (
+      match config.editor with
+      | Some v -> Some v
+      | None -> (
+          match Sys.getenv "EDITOR" with
+          | Some v -> Some v
+          | None ->
+              failwith
+                "No editor is specified in your configuration and environment \
+                 variable $EDITOR is not set" ) )
   | "on_modification" -> config.on_modification
   | _ -> None
 
