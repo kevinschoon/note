@@ -4,8 +4,8 @@
  (libraries note_lib core)
  (preprocess
   (pps ppx_jane))
- (modes byte exe)
- (ocamlopt_flags -ccopt -static))
+ (modes exe)
+ (ocamlopt_flags))
 
 (env
  (dev
