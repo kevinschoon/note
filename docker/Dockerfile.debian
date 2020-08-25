@@ -1,0 +1,35 @@
+FROM ocaml/opam2:debian-stable
+
+USER root
+
+RUN apt-get update && apt-get install -yyq linux-headers-amd64 m4 pkg-config
+
+# install dependencies first to avoid re-installation
+# when the a non-opam file in the repository changes.
+
+COPY note.opam /src/
+
+USER opam
+
+RUN opam repository set-url default https://opam.ocaml.org \
+	&& cd /src \
+	&& opam install dune \
+	&& opam install --deps-only . 
+
+USER root
+
+COPY . /src/
+
+RUN chown -R opam:opam /src
+
+USER opam
+
+RUN cd /src \
+	&& eval "$(opam env)" \
+	&& dune build
+
+FROM debian:stable
+
+COPY --from=0 /src/_build/default/bin/note.exe /usr/bin/note
+
+ENTRYPOINT ["/usr/bin/note"]
