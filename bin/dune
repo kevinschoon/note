@@ -7,6 +7,9 @@
  (modes exe)
  (ocamlopt_flags))
 
+(documentation 
+ (package note))
+
 (env
  (dev
   (flags
