@@ -12,6 +12,8 @@ val to_string : t -> string
 val of_string : string -> t
 (** read the configuration from a string *)
 
+val to_json : t -> Ezjsonm.t
+
 val read_config : string -> t
 (** read the configuration from a filesystem path *)
 

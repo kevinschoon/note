@@ -19,7 +19,7 @@ let default_config =
     on_modification = None;
   }
 
-let to_string config =
+let to_json config = 
   let editor =
     match config.editor with
     | Some value -> Ezjsonm.string value
@@ -30,7 +30,6 @@ let to_string config =
     | Some value -> Ezjsonm.string value
     | None -> Ezjsonm.unit ()
   in
-  let dict =
     Ezjsonm.dict
       [
         ("state_dir", Ezjsonm.string config.state_dir);
@@ -38,7 +37,9 @@ let to_string config =
         ("editor", editor);
         ("on_modification", on_mod);
       ]
-  in
+
+let to_string config =
+  let dict = to_json config in
   Yaml.to_string_exn dict
 
 let of_string config_str =
@@ -59,6 +60,7 @@ let of_string config_str =
   let editor = string_or_none "editor" in
   let on_modification = string_or_none "on_modification" in
   { state_dir; lock_file; editor; on_modification }
+
 
 let get config key =
   match key with
