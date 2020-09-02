@@ -1,3 +1,5 @@
 (library
  (name note_lib)
- (libraries base core ezjsonm stdio yaml))
+ (preprocess (pps ppx_jane))
+ (libraries base core ezjsonm jsonpath stdio yaml)
+ )
