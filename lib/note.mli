@@ -6,12 +6,6 @@ val build : title:string -> tags:string list -> content:string -> t
 val get_title : t -> string
 (** access the title of a note *)
 
-val get_tags : t -> string list
-(** access the tags of a note *)
-
-val get_content : t -> string
-(** access the content body of a note *)
-
 val to_string : note:t -> string
 (** convert a note into a string *)
 

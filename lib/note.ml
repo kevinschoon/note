@@ -1,15 +1,16 @@
 open Core
 open Stdio
 
-type t = { title : string; tags : string list; content : string }
+type t = {
+  title : string;
+  tags : string list;
+  content : string;
+}
 
-let build ~title ~tags ~content = { title; tags; content }
+let build ~title ~tags ~content =
+  { title; tags; content}
 
 let get_title t = t.title
-
-let get_content t = t.content
-
-let get_tags t = t.tags
 
 let to_json ~note =
   Ezjsonm.dict
@@ -18,7 +19,7 @@ let to_json ~note =
       ("tags", Ezjsonm.strings note.tags);
       ("content", Ezjsonm.string note.content);
     ]
-    
+
 let to_string ~note =
   let dict =
     Ezjsonm.dict
