@@ -8,6 +8,33 @@ let init_config path =
   Config.initialize config_path config;
   config
 
+type encoding = Json | Yaml | Text
+
+let encoding_argument =
+  Command.Arg_type.create
+    (fun encoding_str ->
+       match encoding_str with
+       | "Json" | "json" | "JSON" -> Json
+       | "Yaml" | "yaml" | "YAML" -> Yaml
+       | "Text" | "text" | "TEXT" -> Text
+       | _ -> failwith "unsupported encoding type")
+
+type value = Config of Config.t | Note of Note.t
+
+let encode_value value = function
+  | Json -> (
+      match value with
+      | Config config -> Ezjsonm.to_string (Config.to_json config)
+      | Note note -> Ezjsonm.to_string (Note.to_json ~note) )
+  | Yaml -> (
+      match value with
+      | Config config -> Yaml.to_string_exn (Config.to_json config)
+      | Note note -> Yaml.to_string_exn (Note.to_json ~note) )
+  | Text -> (
+      match value with
+      | Config config -> Config.to_string config
+      | Note note -> Note.to_string ~note )
+
 let create_note =
   let open Command.Let_syntax in
   Command.basic ~summary:"create a new note"
@@ -64,13 +91,14 @@ let show_config =
        note config -get state_dir\n\n\n\
       \  ")
     [%map_open
-      let key = flag "get" (optional string) ~doc:"get a config value" in
+      let key = flag "get" (optional string) ~doc:"get a config value" 
+      and encoding = flag "encoding" (optional_with_default Json encoding_argument)  ~doc: "encoding" in
       fun () ->
         let open Config in
         let cfg = init_config None in
         match key with
         | Some key -> print_string (get_exn cfg key)
-        | None -> print_string (to_string cfg)]
+        | None -> print_endline (encode_value (Config cfg) encoding)]
 
 let list_notes =
   let open Command.Let_syntax in
@@ -112,7 +140,9 @@ let cat_note =
        note cat fuubar\n\
       \    ")
     [%map_open
-      let filters = anon (sequence ("filter" %: string)) in
+      let filters = anon (sequence ("filter" %: string))
+      and encoding = flag "encoding" (optional_with_default Text encoding_argument) ~doc: "encoding format"
+      in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -124,12 +154,9 @@ let cat_note =
             slugs
         in
         let notes = Note.filter (Note.read_notes ~paths) filters in
-        match List.length notes with
-        | 0 -> failwith "no note found"
-        | 1 ->
-            let note = List.nth_exn notes 0 in
-            print_endline (Note.to_string ~note)
-        | _ -> failwith "too many results"]
+        List.iter
+          ~f:(fun note -> print_endline (encode_value (Note note) encoding))
+          notes]
 
 let edit_note =
   let open Command.Let_syntax in

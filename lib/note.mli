@@ -18,6 +18,8 @@ val to_string : note:t -> string
 val of_string : data:string -> t option
 (** decode a note from a string *)
 
+val to_json : note:t -> [>Ezjsonm.t]
+
 val of_string_exn : data:string -> t
 
 val read_note : path:string -> t option

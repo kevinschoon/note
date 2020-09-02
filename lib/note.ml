@@ -11,6 +11,14 @@ let get_content t = t.content
 
 let get_tags t = t.tags
 
+let to_json ~note =
+  Ezjsonm.dict
+    [
+      ("title", Ezjsonm.string note.title);
+      ("tags", Ezjsonm.strings note.tags);
+      ("content", Ezjsonm.string note.content);
+    ]
+    
 let to_string ~note =
   let dict =
     Ezjsonm.dict
