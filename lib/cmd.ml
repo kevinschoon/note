@@ -25,15 +25,15 @@ let encode_value value = function
   | Json -> (
       match value with
       | Config config -> Ezjsonm.to_string (Config.to_json config)
-      | Note note -> Ezjsonm.to_string (Note.to_json ~note) )
+      | Note note -> Ezjsonm.to_string (Note.to_json note) )
   | Yaml -> (
       match value with
       | Config config -> Yaml.to_string_exn (Config.to_json config)
-      | Note note -> Yaml.to_string_exn (Note.to_json ~note) )
+      | Note note -> Yaml.to_string_exn (Note.to_json note) )
   | Text -> (
       match value with
       | Config config -> Config.to_string config
-      | Note note -> Note.to_string ~note )
+      | Note note -> Note.to_string note )
 
 let create_note =
   let open Command.Let_syntax in
@@ -66,13 +66,13 @@ let create_note =
         | Some _ ->
             (* reading from stdin so write directly to note *)
             let content = In_channel.input_all In_channel.stdin in
-            let note = Note.build ~title ~tags ~content in
+            let note = Note.build ~tags ~content title in
             Io.create
               ~callback:(get cfg "on_modification")
-              ~content:(Note.to_string ~note) target_file
+              ~content:(Note.to_string note) target_file
         | None ->
-            let note = Note.build ~title ~tags ~content:"" in
-            let init_content = Note.to_string ~note in
+            let note = Note.build ~tags ~content:"" title in
+            let init_content = Note.to_string note in
             Io.create_on_change
               ~callback:(get cfg "on_modification")
               ~editor:(get_exn cfg "editor") init_content target_file]
@@ -125,7 +125,7 @@ let list_notes =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter (Note.read_notes ~paths) filters in
+        let notes = Note.filter (Note.read_notes paths) filters in
         List.iter ~f:(fun x -> print_endline (Note.get_title x)) notes]
 
 let cat_note =
@@ -153,7 +153,7 @@ let cat_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter (Note.read_notes ~paths) filters in
+        let notes = Note.filter (Note.read_notes paths) filters in
         List.iter
           ~f:(fun note -> print_endline (encode_value (Note note) encoding))
           notes]
@@ -186,7 +186,7 @@ let edit_note =
             slugs
         in
         let notes =
-          Note.filter_with_paths (Note.read_notes_with_paths ~paths) filters
+          Note.filter_with_paths (Note.read_notes_with_paths paths) filters
         in
         match List.length notes with
         | 0 -> failwith "no note found"
@@ -222,7 +222,7 @@ let delete_note =
             slugs
         in
         let notes =
-          Note.filter_with_paths (Note.read_notes_with_paths ~paths) filters
+          Note.filter_with_paths (Note.read_notes_with_paths paths) filters
         in
         match List.length notes with
         | 0 -> failwith "no note found"

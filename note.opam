@@ -13,6 +13,7 @@ depends: [
   "core" {>= "v0.14.0"}
   "dune" {>= "2.7" & >= "2.7"}
   "ezjsonm" {>= "1.2.0"}
+  "jsonpath" {>= "0.0.1"}
   "stdio" {>= "v0.14.0"}
   "yaml" {>= "2.1.0"}
   "odoc" {with-doc}

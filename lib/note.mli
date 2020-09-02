@@ -1,31 +1,31 @@
 type t
 
-val build : title:string -> tags:string list -> content:string -> t
+val build : ?tags:string list -> ?content:string -> string -> t
 (** build a new note *)
 
 val get_title : t -> string
 (** access the title of a note *)
 
-val to_string : note:t -> string
+val to_string : t -> string
 (** convert a note into a string *)
 
-val of_string : data:string -> t option
+val of_string : string -> t option
 (** decode a note from a string *)
 
-val to_json : note:t -> [>Ezjsonm.t]
+val to_json : t -> [>Ezjsonm.t]
 
-val of_string_exn : data:string -> t
+val of_string_exn : string -> t
 
-val read_note : path:string -> t option
+val read_note : string -> t option
 (** read a note from the path *)
 
-val read_note_exn : path:string -> t
+val read_note_exn : string -> t
 (** read a note from the path raising an exception on failure *)
 
-val read_notes : paths:string list -> t list
+val read_notes : string list -> t list
 (** read all of the note paths raising an exception of any failure *)
 
-val read_notes_with_paths : paths:string list -> (t * string) list
+val read_notes_with_paths : string list -> (t * string) list
 (** read all of the note paths returning a tuple of note and it's associated path rasiing an exception on any failure *)
 
 val filter : t list -> string list -> t list
