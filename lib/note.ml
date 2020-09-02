@@ -20,11 +20,29 @@ let get_tags t =
   | Some v -> Ezjsonm.get_strings v
   | None -> []
 
+let get_data (t : t) =
+  let markdown = snd t in
+  let data : Ezjsonm.value list =
+    List.filter_map
+      ~f:(fun entry ->
+        match entry with
+        | Code (language, data) | Code_block (language, data) -> (
+            match language with
+            | "JSON" | "Json" | "json" -> Some (Ezjsonm.value (Ezjsonm.from_string data))
+            | "YAML" | "Yaml" | "yaml" -> Some (Yaml.of_string_exn data)
+            (* TODO Sexp, ...?? *)
+            | _ -> None )
+        | _ -> None)
+      markdown
+  in
+  data
+
 let to_json t =
   Ezjsonm.dict
     [
       ("frontmatter", Ezjsonm.value (fst t));
       ("content", Ezjsonm.string (Omd.to_text (snd t)));
+      ("data", Ezjsonm.list (fun x -> x) (get_data t)) ;
     ]
 
 let to_string t =
@@ -38,10 +56,14 @@ let of_string data =
     let meta_str =
       String.slice data (List.nth_exn indexes 0 + 3) (List.nth_exn indexes 1)
     in
-    let frontmatter : Ezjsonm.t = match (Yaml.of_string_exn meta_str) with 
-    | `O v -> `O v
-    | `A v -> `A v
-    | _ -> failwith "frontmatter is a partial fragment, should be either a dictionary or list"
+    let frontmatter : Ezjsonm.t =
+      match Yaml.of_string_exn meta_str with
+      | `O v -> `O v
+      | `A v -> `A v
+      | _ ->
+          failwith
+            "frontmatter is a partial fragment, should be either a dictionary \
+             or list"
     in
     let markdown : Omd.t =
       Omd.of_string
