@@ -9,6 +9,7 @@ license: "AGPL3"
 homepage: "https://github.com/kevinschoon/note"
 bug-reports: "https://github.com/kevinschoon/note/issues"
 depends: [
+  "ANSITerminal" {>= "0.8.2"}
   "base" {>= "v0.14.0"}
   "core" {>= "v0.14.0"}
   "dune" {>= "2.7" & >= "2.7"}

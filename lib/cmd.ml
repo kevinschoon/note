@@ -11,13 +11,12 @@ let init_config path =
 type encoding = Json | Yaml | Text
 
 let encoding_argument =
-  Command.Arg_type.create
-    (fun encoding_str ->
-       match encoding_str with
-       | "Json" | "json" | "JSON" -> Json
-       | "Yaml" | "yaml" | "YAML" -> Yaml
-       | "Text" | "text" | "TEXT" -> Text
-       | _ -> failwith "unsupported encoding type")
+  Command.Arg_type.create (fun encoding_str ->
+      match encoding_str with
+      | "Json" | "json" | "JSON" -> Json
+      | "Yaml" | "yaml" | "YAML" -> Yaml
+      | "Text" | "text" | "TEXT" -> Text
+      | _ -> failwith "unsupported encoding type")
 
 type value = Config of Config.t | Note of Note.t
 
@@ -34,6 +33,15 @@ let encode_value value = function
       match value with
       | Config config -> Config.to_string config
       | Note note -> Note.to_string note )
+
+let format_note note = 
+    let open ANSITerminal in
+    let title = Note.get_title note in
+    printf [ANSITerminal.Bold] "%s\n" title
+
+(*
+ * commands
+ *)
 
 let create_note =
   let open Command.Let_syntax in
@@ -91,8 +99,12 @@ let show_config =
        note config -get state_dir\n\n\n\
       \  ")
     [%map_open
-      let key = flag "get" (optional string) ~doc:"get a config value" 
-      and encoding = flag "encoding" (optional_with_default Json encoding_argument)  ~doc: "encoding" in
+      let key = flag "get" (optional string) ~doc:"get a config value"
+      and encoding =
+        flag "encoding"
+          (optional_with_default Json encoding_argument)
+          ~doc:"encoding"
+      in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -126,7 +138,7 @@ let list_notes =
             slugs
         in
         let notes = Note.filter (Note.read_notes paths) filters in
-        List.iter ~f:(fun x -> print_endline (Note.get_title x)) notes]
+        List.iter ~f:(fun note -> (format_note note)) notes]
 
 let cat_note =
   let open Command.Let_syntax in
@@ -141,7 +153,10 @@ let cat_note =
       \    ")
     [%map_open
       let filters = anon (sequence ("filter" %: string))
-      and encoding = flag "encoding" (optional_with_default Text encoding_argument) ~doc: "encoding format"
+      and encoding =
+        flag "encoding"
+          (optional_with_default Text encoding_argument)
+          ~doc:"encoding format"
       in
       fun () ->
         let open Config in
