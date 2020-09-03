@@ -1,27 +1,45 @@
 open Core
 open Stdio
 
-type t = {
-    frontmatter: Ezjsonm.t ;
-    markdown : Omd.t ;
-}
+type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t }
 
 let build ?(tags = []) ?(content = "") title =
   let frontmatter =
-    Ezjsonm.dict
-      [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ]
+    Some
+      (Ezjsonm.dict
+         [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ])
   in
   let markdown = Omd.of_string content in
-  {frontmatter; markdown}
+  { frontmatter; markdown }
 
 let get_title t =
-  match Ezjsonm.find_opt (Ezjsonm.value (t.frontmatter)) [ "title" ] with
-  | Some v -> Ezjsonm.get_string v
-  | None -> ""
+  let title =
+    match t.frontmatter with
+    | Some fm -> (
+        match Ezjsonm.find_opt (Ezjsonm.value fm) [ "title" ] with
+        | Some v -> Some (Ezjsonm.get_string v)
+        | None -> None )
+    | None -> None
+  in
+  match title with
+  | Some title -> title
+  (* Since we couldn't determine the title from frontmatter now we will infer the title by looking at the markdown *)
+  | None -> (
+      let title =
+        List.find
+          ~f:(fun entry ->
+            match entry with Omd.H1 _ | Omd.H2 _ | Omd.H3 _ | Omd.H4 _ | Omd.H5 _ | Omd.H6 _  -> true | _ -> false)
+          t.markdown
+      in
+      match title with Some e -> 
+      Omd_backend.text_of_md [e] | None -> "??" )
 
 let get_tags t =
-  match Ezjsonm.find_opt (Ezjsonm.value (t.frontmatter)) [ "tags" ] with
-  | Some v -> Ezjsonm.get_strings v
+  match t.frontmatter with
+  | Some fm -> (
+      match Ezjsonm.find_opt (Ezjsonm.value fm) [ "tags" ] with
+      | Some v -> Ezjsonm.get_strings v
+      | None -> [] )
   | None -> []
 
 let get_data (t : t) =
@@ -31,7 +49,8 @@ let get_data (t : t) =
         match entry with
         | Code (language, data) | Code_block (language, data) -> (
             match language with
-            | "JSON" | "Json" | "json" -> Some (Ezjsonm.value (Ezjsonm.from_string data))
+            | "JSON" | "Json" | "json" ->
+                Some (Ezjsonm.value (Ezjsonm.from_string data))
             | "YAML" | "Yaml" | "yaml" -> Some (Yaml.of_string_exn data)
             (* TODO Sexp, ...?? *)
             | _ -> None )
@@ -41,18 +60,26 @@ let get_data (t : t) =
   data
 
 let to_json t =
+  let frontmatter =
+    match t.frontmatter with
+    | Some fm -> Ezjsonm.value fm
+    | None -> Ezjsonm.unit ()
+  in
   Ezjsonm.dict
     [
-      ("frontmatter", Ezjsonm.value (t.frontmatter));
-      ("content", Ezjsonm.string (Omd.to_text (t.markdown)));
-      ("data", Ezjsonm.list (fun x -> x) (get_data t)) ;
+      ("frontmatter", frontmatter);
+      ("content", Ezjsonm.string (Omd.to_text t.markdown));
+      ("data", Ezjsonm.list (fun x -> x) (get_data t));
     ]
 
 let to_string t =
-  let front_matter = Yaml.to_string_exn (Ezjsonm.value (t.frontmatter)) in
-  String.concat ~sep:"\n" [ "---"; front_matter; "---"; Omd.to_text (t.markdown) ]
+  match t.frontmatter with
+  | Some fm ->
+      let front_matter = Yaml.to_string_exn (Ezjsonm.value fm) in
+      String.concat ~sep:"\n"
+        [ "---"; front_matter; "---"; Omd.to_text t.markdown ]
+  | None -> Omd.to_text t.markdown
 
-(*TODO: Change to Option*)
 let of_string data =
   let indexes = String.substr_index_all ~may_overlap:true ~pattern:"---" data in
   if List.length indexes >= 2 then
@@ -72,25 +99,21 @@ let of_string data =
       Omd.of_string
         (String.slice data (List.nth_exn indexes 1 + 3) (String.length data))
     in
-    Some {frontmatter ; markdown}
-  else None
-
-let of_string_exn data =
-  let note = of_string data in
-  match note with Some note -> note | None -> failwith "bad note content"
+    let frontmatter = Some frontmatter in
+    { frontmatter; markdown }
+  else
+    let frontmatter = None in
+    let markdown = Omd.of_string data in
+    { frontmatter; markdown }
 
 let read_note path =
   let data = In_channel.read_all path in
   of_string data
 
-let read_note_exn path =
-  let note = read_note path in
-  match note with Some note -> note | None -> failwith "failed to read note"
-
-let read_notes paths = List.map ~f:(fun path -> read_note_exn path) paths
+let read_notes paths = List.map ~f:(fun path -> read_note path) paths
 
 let read_notes_with_paths paths =
-  List.map ~f:(fun path -> (read_note_exn path, path)) paths
+  List.map ~f:(fun path -> (read_note path, path)) paths
 
 let filter (notes : t list) filters =
   if List.length filters = 0 then notes
