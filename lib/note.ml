@@ -1,5 +1,4 @@
 open Core
-open Stdio
 
 type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t }
 
@@ -28,11 +27,13 @@ let get_title t =
       let title =
         List.find
           ~f:(fun entry ->
-            match entry with Omd.H1 _ | Omd.H2 _ | Omd.H3 _ | Omd.H4 _ | Omd.H5 _ | Omd.H6 _  -> true | _ -> false)
+            match entry with
+            | Omd.H1 _ | Omd.H2 _ | Omd.H3 _ | Omd.H4 _ | Omd.H5 _ | Omd.H6 _ ->
+                true
+            | _ -> false)
           t.markdown
       in
-      match title with Some e -> 
-      Omd_backend.text_of_md [e] | None -> "??" )
+      match title with Some e -> Omd_backend.text_of_md [ e ] | None -> "???" )
 
 let get_tags t =
   match t.frontmatter with
@@ -106,59 +107,14 @@ let of_string data =
     let markdown = Omd.of_string data in
     { frontmatter; markdown }
 
-let read_note path =
-  let data = In_channel.read_all path in
-  of_string data
+let filter_title ~keys note = 
+    (List.count ~f:(fun key -> String.equal key (get_title note)) keys) > 0
 
-let read_notes paths = List.map ~f:(fun path -> read_note path) paths
+let filter_tags ~keys note =
+    let tags = (get_tags note) in
+    List.count ~f: (fun tag -> List.mem ~equal:(String.equal) keys tag) tags > 0
 
-let read_notes_with_paths paths =
-  List.map ~f:(fun path -> (read_note path, path)) paths
-
-let filter (notes : t list) filters =
-  if List.length filters = 0 then notes
-    (* return everything if there are no filters *)
+let filter ?(keys = []) (note : t) =
+  if List.length keys = 0 then true
   else
-    List.fold ~init:[]
-      ~f:(fun accm note ->
-        (* first look by name *)
-        let matches =
-          List.count
-            ~f:(fun filter -> String.equal (get_title note) filter)
-            filters
-        in
-        if matches > 0 then note :: accm
-        else
-          (* then compare each tag with each filter *)
-          let matches =
-            List.count
-              ~f:(fun filter ->
-                List.mem ~equal:String.equal (get_tags note) filter)
-              filters
-          in
-          if matches > 0 then note :: accm else accm)
-      notes
-
-let filter_with_paths notes filters =
-  if List.length filters = 0 then notes
-    (* return everything if there are no filters *)
-  else
-    List.fold ~init:[]
-      ~f:(fun accm (note, path) ->
-        (* first look by name *)
-        let matches =
-          List.count
-            ~f:(fun filter -> String.equal (get_title note) filter)
-            filters
-        in
-        if matches > 0 then (note, path) :: accm
-        else
-          (* then compare each tag with each filter *)
-          let matches =
-            List.count
-              ~f:(fun filter ->
-                List.mem ~equal:String.equal (get_tags note) filter)
-              filters
-          in
-          if matches > 0 then (note, path) :: accm else accm)
-      notes
+    (filter_title ~keys note) || (filter_tags ~keys note)

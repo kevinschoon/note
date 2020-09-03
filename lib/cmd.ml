@@ -34,10 +34,10 @@ let encode_value value = function
       | Config config -> Config.to_string config
       | Note note -> Note.to_string note )
 
-let format_note note = 
-    let open ANSITerminal in
-    let title = Note.get_title note in
-    printf [ANSITerminal.Bold] "%s\n" title
+let format_note note =
+  let open ANSITerminal in
+  let title = Note.get_title note in
+  printf [ ANSITerminal.Bold ] "%s\n" title
 
 (*
  * commands
@@ -137,8 +137,14 @@ let list_notes =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter (Note.read_notes paths) filters in
-        List.iter ~f:(fun note -> (format_note note)) notes]
+        let notes =
+          List.filter
+            ~f:(Note.filter ~keys:filters)
+            (List.map
+               ~f:(fun path -> Note.of_string (In_channel.read_all path))
+               paths)
+        in
+        List.iter ~f:(fun note -> format_note note) notes]
 
 let cat_note =
   let open Command.Let_syntax in
@@ -168,7 +174,13 @@ let cat_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let notes = Note.filter (Note.read_notes paths) filters in
+        let notes =
+          List.filter
+            ~f:(Note.filter ~keys:filters)
+            (List.map
+               ~f:(fun path -> Note.of_string (In_channel.read_all path))
+               paths)
+        in
         List.iter
           ~f:(fun note -> print_endline (encode_value (Note note) encoding))
           notes]
@@ -200,8 +212,13 @@ let edit_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let filter = Note.filter ~keys:filters in
         let notes =
-          Note.filter_with_paths (Note.read_notes_with_paths paths) filters
+          List.filter_map
+            ~f:(fun path ->
+              let note = Note.of_string (In_channel.read_all path) in
+              match filter note with true -> Some (note, path) | false -> None)
+            paths
         in
         match List.length notes with
         | 0 -> failwith "no note found"
@@ -236,8 +253,13 @@ let delete_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let filter = Note.filter ~keys:filters in
         let notes =
-          Note.filter_with_paths (Note.read_notes_with_paths paths) filters
+          List.filter_map
+            ~f:(fun path ->
+              let note = Note.of_string (In_channel.read_all path) in
+              match filter note with true -> Some (note, path) | false -> None)
+            paths
         in
         match List.length notes with
         | 0 -> failwith "no note found"
