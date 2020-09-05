@@ -18,6 +18,14 @@ let encoding_argument =
       | "Text" | "text" | "TEXT" -> Text
       | _ -> failwith "unsupported encoding type")
 
+let filter_argument =
+  Command.Arg_type.create (fun encoding_str ->
+      match encoding_str with
+      | "Keys" | "keys" | "KEYS" -> Note.Filter.Keys
+      | "Path" | "path" | "PATH" -> Note.Filter.Path
+      | "Subset" | "subset" | "SUBSET" -> Note.Filter.Subset
+      | _ -> failwith "unsupported encoding type")
+
 type value = Config of Config.t | Note of Note.t
 
 let encode_value value = function
@@ -126,7 +134,12 @@ let list_notes =
        note config fuu bar\n\n\
       \      ")
     [%map_open
-      let filters = anon (sequence ("filter" %: string)) in
+      let filter_args = anon (sequence ("filter" %: string))
+      and filter_kind =
+        flag "kind"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
+      in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -138,8 +151,8 @@ let list_notes =
             slugs
         in
         let notes =
-          List.filter
-            ~f:(Note.filter ~keys:filters)
+          Note.Filter.find_many
+            (Note.Filter.of_strings filter_kind filter_args)
             (List.map
                ~f:(fun path -> Note.of_string (In_channel.read_all path))
                paths)
@@ -158,7 +171,11 @@ let cat_note =
        note cat fuubar\n\
       \    ")
     [%map_open
-      let filters = anon (sequence ("filter" %: string))
+      let filter_args = anon (sequence ("filter" %: string))
+      and filter_kind =
+        flag "kind"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
       and encoding =
         flag "encoding"
           (optional_with_default Text encoding_argument)
@@ -175,8 +192,8 @@ let cat_note =
             slugs
         in
         let notes =
-          List.filter
-            ~f:(Note.filter ~keys:filters)
+          Note.Filter.find_many
+            (Note.Filter.of_strings filter_kind filter_args)
             (List.map
                ~f:(fun path -> Note.of_string (In_channel.read_all path))
                paths)
@@ -201,7 +218,12 @@ let edit_note =
        note edit fuubar\n\n\
       \    ")
     [%map_open
-      let filters = anon (sequence ("filter" %: string)) in
+      let filter_args = anon (sequence ("filter" %: string))
+      and filter_kind =
+        flag "kind"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
+      in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -212,22 +234,21 @@ let edit_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let filter = Note.filter ~keys:filters in
-        let notes =
-          List.filter_map
-            ~f:(fun path ->
-              let note = Note.of_string (In_channel.read_all path) in
-              match filter note with true -> Some (note, path) | false -> None)
-            paths
+        let note =
+          Note.Filter.find_one_with_paths
+            (Note.Filter.of_strings filter_kind filter_args)
+            (List.map
+               ~f:(fun path ->
+                 (Note.of_string (In_channel.read_all path), path))
+               paths)
         in
-        match List.length notes with
-        | 0 -> failwith "no note found"
-        | 1 ->
-            let _, path = List.nth_exn notes 0 in
-            Io.edit
-              ~callback:(get cfg "on_modification")
-              ~editor:(get_exn cfg "editor") path
-        | _ -> failwith "too many results"]
+        match note with
+        | Some (_, path) ->
+            Io.edit 
+            ~callback: (get cfg "on_modification")
+            ~editor: (get_exn cfg "editor") path
+        | None -> 
+        failwith "not found"]
 
 let delete_note =
   let open Command.Let_syntax in
@@ -242,7 +263,12 @@ let delete_note =
        note delete fuubar\n\
       \    ")
     [%map_open
-      let filters = anon (sequence ("filter" %: string)) in
+      let filter_args = anon (sequence ("filter" %: string))
+      and filter_kind =
+        flag "kind"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
+      in
       fun () ->
         let open Config in
         let cfg = init_config None in
@@ -253,21 +279,20 @@ let delete_note =
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
-        let filter = Note.filter ~keys:filters in
-        let notes =
-          List.filter_map
-            ~f:(fun path ->
-              let note = Note.of_string (In_channel.read_all path) in
-              match filter note with true -> Some (note, path) | false -> None)
-            paths
+        let note =
+          Note.Filter.find_one_with_paths
+            (Note.Filter.of_strings filter_kind filter_args)
+            (List.map
+               ~f:(fun path ->
+                 (Note.of_string (In_channel.read_all path), path))
+               paths)
         in
-        match List.length notes with
-        | 0 -> failwith "no note found"
-        | 1 ->
-            let _, path = List.nth_exn notes 0 in
+        match note with
+        | Some (_, path) ->
             (* TODO: prompt for confirmation *)
             Unix.remove path
-        | _ -> failwith "too many results"]
+        | None -> 
+        failwith "not found"]
 
 let run =
   Command.run

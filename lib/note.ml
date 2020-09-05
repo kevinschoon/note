@@ -43,8 +43,8 @@ let get_tags t =
       | None -> [] )
   | None -> []
 
-let get_data (t : t) =
-  let data : Ezjsonm.value list =
+let get_data t =
+  let data =
     List.filter_map
       ~f:(fun entry ->
         match entry with
@@ -58,7 +58,7 @@ let get_data (t : t) =
         | _ -> None)
       t.markdown
   in
-  data
+  Ezjsonm.list (fun value -> value) data
 
 let to_json t =
   let frontmatter =
@@ -70,7 +70,7 @@ let to_json t =
     [
       ("frontmatter", frontmatter);
       ("content", Ezjsonm.string (Omd.to_text t.markdown));
-      ("data", Ezjsonm.list (fun x -> x) (get_data t));
+      ("data", get_data t);
     ]
 
 let to_string t =
@@ -107,14 +107,102 @@ let of_string data =
     let markdown = Omd.of_string data in
     { frontmatter; markdown }
 
-let filter_title ~keys note = 
-    (List.count ~f:(fun key -> String.equal key (get_title note)) keys) > 0
+module Filter = struct
+  type strategy = Keys | Path | Subset
 
-let filter_tags ~keys note =
-    let tags = (get_tags note) in
-    List.count ~f: (fun tag -> List.mem ~equal:(String.equal) keys tag) tags > 0
+  let title key note = String.equal key (get_title note)
 
-let filter ?(keys = []) (note : t) =
-  if List.length keys = 0 then true
-  else
-    (filter_title ~keys note) || (filter_tags ~keys note)
+  let tags key note =
+    let tags = get_tags note in
+    List.count ~f:(fun tag -> String.equal key tag) tags > 0
+
+  let subset entry note =
+    let rec is_subset json subset =
+      let open Json_derivers.Jsonm in
+      if compare (Ezjsonm.wrap json) (Ezjsonm.wrap subset) = 0 then true
+      else
+        match json with
+        | `A lst -> List.count ~f:(fun entry -> is_subset entry subset) lst > 0
+        | `O dct ->
+            List.count ~f:(fun (_, entry) -> is_subset entry subset) dct > 0
+        | _ -> false
+    in
+
+    match note.frontmatter with
+    | Some fm ->
+        (* check frontmatter first *)
+        if is_subset (Ezjsonm.value fm) entry then true
+        else is_subset (get_data note) entry
+    | None -> is_subset (get_data note) entry
+
+  let jsonpath ?(other = None) path note =
+    let open Json_derivers.Jsonm in
+    let open Jsonpath in
+    let filter_data =
+      List.count
+        ~f:(fun value ->
+          match other with
+          | Some doc -> compare (Ezjsonm.wrap value) (Ezjsonm.wrap doc) > 0
+          | None -> true)
+        (Jsonm.select path (get_data note))
+      > 0
+    in
+    match note.frontmatter with
+    | Some fm ->
+        if
+          List.count
+            ~f:(fun value ->
+              match other with
+              | Some doc -> compare (Ezjsonm.wrap value) (Ezjsonm.wrap doc) > 0
+              | None -> true)
+            (Jsonm.select path (Ezjsonm.value fm))
+          > 0
+        then true
+        else filter_data
+    | None -> filter_data
+
+  let of_strings (strategy : strategy) (args : string list) =
+    match strategy with
+    | Path ->
+        if List.length args % 2 = 0 then
+          List.filter_mapi
+            ~f:(fun i arg ->
+              if i % 2 = 0 then
+                let path = Jsonpath.of_string arg in
+                let doc_string = List.nth_exn args (i + 1) in
+                let other = Ezjsonm.value (Ezjsonm.from_string doc_string) in
+                Some (jsonpath ~other:(Some other) path)
+              else None)
+            args
+        else List.map ~f:(fun arg -> jsonpath (Jsonpath.of_string arg)) args
+    | Keys ->
+        List.map
+          ~f:(fun arg ->
+            let has_title = title arg in
+            let has_tag = tags arg in
+            fun note -> has_title note || has_tag note)
+          args
+    | Subset -> List.map ~f:(fun arg -> subset (Ezjsonm.from_string arg)) args
+
+  let find_one filters notes =
+    List.find
+      ~f:(fun note ->
+        List.count ~f:(fun filter -> filter note) filters > 0
+        || List.length filters = 0)
+      notes
+
+  let find_one_with_paths filters notes =
+    List.find
+      ~f:(fun (note, _) ->
+        List.count ~f:(fun filter -> filter note) filters > 0
+        || List.length filters = 0)
+      notes
+
+  let find_many filters notes =
+    List.filter
+      ~f:(fun note ->
+        List.count ~f:(fun filter -> filter note) filters > 0
+        || List.length filters = 0)
+      notes
+
+end

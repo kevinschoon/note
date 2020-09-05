@@ -8,7 +8,7 @@ val get_title : t -> string
 
 val get_tags : t -> string list
 
-val get_data : t -> Ezjsonm.value list
+val get_data : t -> Ezjsonm.t
 (** Extract arbitrarily nested data in the note's markdown document. 
     Currently this will only support code blocks of json or ymal but it may
     be expanded. For example a markdown document such as:
@@ -39,6 +39,25 @@ val to_string : t -> string
 val of_string : string -> t
 (** decode a note from a string *)
 
-val to_json : t -> [>Ezjsonm.t]
+val to_json : t -> [> Ezjsonm.t ]
 
-val filter: ?keys: string list -> (t -> bool)
+module Filter : sig
+
+  type strategy = Keys | Path | Subset
+
+  val title : string -> t -> bool
+
+  val tags : string -> t -> bool
+
+  val subset : Ezjsonm.value -> t -> bool
+
+  val jsonpath : ?other:Ezjsonm.value option -> Jsonpath.t -> t -> bool
+
+  val of_strings : strategy -> string list -> (t -> bool) list
+
+  val find_one : (t -> bool) list -> t list -> t option
+
+  val find_one_with_paths : (t -> bool) list -> (t * string) list -> (t * string) option
+
+  val find_many : (t -> bool) list -> t list -> t list
+end
