@@ -215,9 +215,11 @@ note delete fuubar
                paths)
         in
         match note with
-        | Some (_, path) ->
-            (* TODO: prompt for confirmation *)
-            Unix.remove path
+        | Some (note, path) ->
+            Io.delete 
+            ~callback:(get cfg "on_modification")
+            ~title: (Note.get_title note)
+            path
         | None -> failwith "not found"]
 
 let edit_note =

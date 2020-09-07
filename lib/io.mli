@@ -9,3 +9,6 @@ val create_on_change :
 
 val edit : callback:string option -> editor:string -> string -> unit
 (** modify an existing note and optionally read the callback on change *)
+
+val delete : callback:string option -> title:string -> string -> unit
+(** delete an existing note from the filesystem, optionally run callback on change *)

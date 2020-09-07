@@ -21,3 +21,19 @@ let edit ~callback ~editor path =
   let new_content = In_channel.read_all path in
   if not (String.equal orig_content new_content) then
     match callback with Some cmd -> Sys.command_exn cmd | None -> ()
+
+let delete ~callback ~title path =
+  let colorize_title title = 
+  let open ANSITerminal in
+  (sprintf [ ANSITerminal.Bold ] "%s" title) in
+  print_endline (sprintf "Are you sure you want to delete the following note: %s?" (colorize_title title)) ;
+  print_endline "Type YES to continue" ;
+  let input = In_channel.(input_line stdin) in 
+  match input with
+  | Some value -> 
+    if String.equal value "YES" then
+    (Unix.remove path ;
+    (match callback with Some cmd -> Sys.command_exn cmd | None -> ()))
+    else
+    print_endline "No changes made"
+  | None -> ()
