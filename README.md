@@ -74,13 +74,6 @@ EOF
     ]
   }
 ]
-
-# it is also possible to use structured data to filter
-# notes by data contained within
-
-note ls -filter Subset '{"style": "Bachatón"}'
-Musical Styles
-
 ````
 
 ## Filtering Notes
