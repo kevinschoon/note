@@ -51,20 +51,104 @@ let format_note note =
  * commands
  *)
 
+let cat_note =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"write a note to stdout"
+    ~readme:(fun () ->
+      {|
+Write one or more notes to stdout. By default the cat command will write every note 
+to stdout as plain text however the encoding can be adjusted to `yaml` or `json` 
+for consumption by other tools. 
+
+Examples:
+
+# print the parsed content of the fuubar note
+note cat fuubar
+# write all commands as a json list
+note cat -encoding json
+|})
+    [%map_open
+      let filter_args = anon (sequence ("filters" %: string))
+      and filter_kind =
+        flag "filter"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"strategy [Keys | Path | Subset] (default: Keys)"
+      and encoding =
+        flag "encoding"
+          (optional_with_default Text encoding_argument)
+          ~doc:"format [Text | Json | Yaml] (default: Text)"
+      in
+      fun () ->
+        let open Config in
+        let cfg = init_config None in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
+        let paths =
+          List.map
+            ~f:(fun s ->
+              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
+            slugs
+        in
+        let notes =
+          Note.Filter.find_many
+            (Note.Filter.of_strings filter_kind filter_args)
+            (List.map
+               ~f:(fun path -> Note.of_string (In_channel.read_all path))
+               paths)
+        in
+        List.iter
+          ~f:(fun note -> print_endline (encode_value (Note note) encoding))
+          notes]
+
+let show_config =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"display the configuration"
+    ~readme:(fun () ->
+      {| 
+Display the current configuration as inferred by Note. It is also possible to 
+extract specific values by specifying a key value.
+
+Examples
+
+# display the current configuration
+note config
+# extract a specific value from the configuration
+note config -get state_dir
+|})
+    [%map_open
+      let key = flag "get" (optional string) ~doc:"get a config value"
+      and encoding =
+        flag "encoding"
+          (optional_with_default Json encoding_argument)
+          ~doc:"encoding"
+      in
+      fun () ->
+        let open Config in
+        let cfg = init_config None in
+        match key with
+        | Some key -> print_string (get_exn cfg key)
+        | None -> print_endline (encode_value (Config cfg) encoding)]
+
 let create_note =
   let open Command.Let_syntax in
   Command.basic ~summary:"create a new note"
     ~readme:(fun () ->
-      "\n\
-       This command will create a new note and save it to disk\n\
-       If the on_modification option is configured, it will run\n\
-       that callback if the new note is saved from your editor.\n\n\
-       EXAMPLES:\n\n\
-       # create a note with tags\n\
-       note create \"Vim Commands\" programming linux fuu bar\n\n\
-       # write a file from stdin into a new note\n\
-       cat some_file.txt | note create -stdin \"Some File\" baz qux\n\
-      \  ")
+      {|
+Create a new note and save it to disk in your configured `state_dir`. 
+The `on_modification` call back will be invoked if the file is committed to disk.
+
+Examples:
+
+# create a new note with the given title and tags
+note create "Remember The Milk" groceries fuu bar
+# create a note by reading from stdin
+note create -stdin <<EOF
+# My Important Note
+
+Hello World!
+EOF
+# the title will be inferred from the heading
+note ls "My Important Note"
+|})
     [%map_open
       let open_stdin =
         flag "stdin" (optional bool)
@@ -93,175 +177,18 @@ let create_note =
               ~callback:(get cfg "on_modification")
               ~editor:(get_exn cfg "editor") init_content target_file]
 
-let show_config =
-  let open Command.Let_syntax in
-  Command.basic ~summary:"display the configuration"
-    ~readme:(fun () ->
-      "\n\
-       This command will display the current configuration and may also\n\
-       be used to retrieve a config value.\n\n\
-       EXAMPLES:\n\n\
-       # get the current configuration\n\
-       note config\n\n\
-       # get a specific value from the configuration\n\
-       note config -get state_dir\n\n\n\
-      \  ")
-    [%map_open
-      let key = flag "get" (optional string) ~doc:"get a config value"
-      and encoding =
-        flag "encoding"
-          (optional_with_default Json encoding_argument)
-          ~doc:"encoding"
-      in
-      fun () ->
-        let open Config in
-        let cfg = init_config None in
-        match key with
-        | Some key -> print_string (get_exn cfg key)
-        | None -> print_endline (encode_value (Config cfg) encoding)]
-
-let list_notes =
-  let open Command.Let_syntax in
-  Command.basic ~summary:"list notes"
-    ~readme:(fun () ->
-      "\n\
-       This command will list notes stored in the state_directory, filters may \
-       be applied to limit the results\n\n\
-       EXAMPLES:\n\n\
-       # list all notes\n\
-       note config\n\n\
-       # list notes matching fuu or bar\n\
-       note config fuu bar\n\n\
-      \      ")
-    [%map_open
-      let filter_args = anon (sequence ("filter" %: string))
-      and filter_kind =
-        flag "kind"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
-      in
-      fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
-        let notes =
-          Note.Filter.find_many
-            (Note.Filter.of_strings filter_kind filter_args)
-            (List.map
-               ~f:(fun path -> Note.of_string (In_channel.read_all path))
-               paths)
-        in
-        List.iter ~f:(fun note -> format_note note) notes]
-
-let cat_note =
-  let open Command.Let_syntax in
-  Command.basic ~summary:"write a note to stdout"
-    ~readme:(fun () ->
-      "\n\
-       This command will write a single note to stdout, if more than\n\
-       one note is returned it will raise an exception.\n\n\
-       EXAMPLES:\n\n\
-       # write the fuubar note to stdout\n\
-       note cat fuubar\n\
-      \    ")
-    [%map_open
-      let filter_args = anon (sequence ("filter" %: string))
-      and filter_kind =
-        flag "kind"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
-      and encoding =
-        flag "encoding"
-          (optional_with_default Text encoding_argument)
-          ~doc:"encoding format"
-      in
-      fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
-        let notes =
-          Note.Filter.find_many
-            (Note.Filter.of_strings filter_kind filter_args)
-            (List.map
-               ~f:(fun path -> Note.of_string (In_channel.read_all path))
-               paths)
-        in
-        List.iter
-          ~f:(fun note -> print_endline (encode_value (Note note) encoding))
-          notes]
-
-let edit_note =
-  let open Command.Let_syntax in
-  Command.basic ~summary:"edit an existing note"
-    ~readme:(fun () ->
-      "\n\
-       This command will select a note based on your filter criteria and open \
-       it in your\n\
-       configured $EDITOR. If the on_modification option is configured, it \
-       will run that callback if the note\n\
-       is modified. If none or more than one note is returned it will raise an \
-       exception.\n\n\
-       EXAMPLES:\n\n\
-       # edit the fuubar note\n\
-       note edit fuubar\n\n\
-      \    ")
-    [%map_open
-      let filter_args = anon (sequence ("filter" %: string))
-      and filter_kind =
-        flag "kind"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
-      in
-      fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
-        let note =
-          Note.Filter.find_one_with_paths
-            (Note.Filter.of_strings filter_kind filter_args)
-            (List.map
-               ~f:(fun path ->
-                 (Note.of_string (In_channel.read_all path), path))
-               paths)
-        in
-        match note with
-        | Some (_, path) ->
-            Io.edit 
-            ~callback: (get cfg "on_modification")
-            ~editor: (get_exn cfg "editor") path
-        | None -> 
-        failwith "not found"]
-
 let delete_note =
   let open Command.Let_syntax in
   Command.basic ~summary:"delete an existing note"
     ~readme:(fun () ->
-      "\n\
-       This command will delete the note that matches the filter criteria. If \
-       none or more than\n\
-       one note is returned it will raise an exception.\n\n\
-       EXAMPLES:\n\n\
-       # delete the fuubar note\n\
-       note delete fuubar\n\
-      \    ")
+      {|
+Delete the first note that matches the filter criteria. The `on_modification` call back will be invoked if the note is deleted. 
+
+Examples
+
+# delete the note called fuubar
+note delete fuubar
+|})
     [%map_open
       let filter_args = anon (sequence ("filter" %: string))
       and filter_kind =
@@ -291,8 +218,90 @@ let delete_note =
         | Some (_, path) ->
             (* TODO: prompt for confirmation *)
             Unix.remove path
-        | None -> 
-        failwith "not found"]
+        | None -> failwith "not found"]
+
+let edit_note =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"edit an existing note"
+    ~readme:(fun () ->
+      {| 
+Select a note that matches the filter criteria and open it in your `$EDITOR`. The `on_modification` call back will be invoked if the edited file differs from the original. 
+
+Examples
+
+# edit the fuubar note
+note edit fuubar
+|})
+    [%map_open
+      let filter_args = anon (sequence ("filter" %: string))
+      and filter_kind =
+        flag "kind"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
+      in
+      fun () ->
+        let open Config in
+        let cfg = init_config None in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
+        let paths =
+          List.map
+            ~f:(fun s ->
+              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
+            slugs
+        in
+        let note =
+          Note.Filter.find_one_with_paths
+            (Note.Filter.of_strings filter_kind filter_args)
+            (List.map
+               ~f:(fun path ->
+                 (Note.of_string (In_channel.read_all path), path))
+               paths)
+        in
+        match note with
+        | Some (_, path) ->
+            Io.edit
+              ~callback:(get cfg "on_modification")
+              ~editor:(get_exn cfg "editor") path
+        | None -> failwith "not found"]
+
+let list_notes =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"list notes"
+    ~readme:(fun () ->
+      {| 
+List notes that match the filter criteria, if no filter criteria is given all notes will be listed
+
+Examples
+
+# list all notes
+note ls
+```
+|})
+    [%map_open
+      let filter_args = anon (sequence ("args" %: string))
+      and filter_kind =
+        flag "filter"
+          (optional_with_default Note.Filter.Keys filter_argument)
+          ~doc:"filter kind"
+      in
+      fun () ->
+        let open Config in
+        let cfg = init_config None in
+        let slugs = Slug.load (get_exn cfg "state_dir") in
+        let paths =
+          List.map
+            ~f:(fun s ->
+              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
+            slugs
+        in
+        let notes =
+          Note.Filter.find_many
+            (Note.Filter.of_strings filter_kind filter_args)
+            (List.map
+               ~f:(fun path -> Note.of_string (In_channel.read_all path))
+               paths)
+        in
+        List.iter ~f:(fun note -> format_note note) notes]
 
 let run =
   Command.run
