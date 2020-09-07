@@ -52,7 +52,7 @@ note create -stdin <<EOF
 EOF
 
 # Now let's inspect the code block with jq
-# note cat -encoding json "Musical Styles" | jq .data[0]
+note cat -encoding json "Musical Styles" | jq .data[0]
 [
   {
     "style": "Bomba",
