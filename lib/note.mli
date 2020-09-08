@@ -7,6 +7,10 @@ val get_title : t -> string
 (** access the title of a note *)
 
 val get_tags : t -> string list
+(** access tags in the frontmatter of a note *)
+
+val tokenize : t -> string list
+(** split each word from the note into a list of string tokens *)
 
 val get_data : t -> Ezjsonm.t
 (** Extract arbitrarily nested data in the note's markdown document. 

@@ -43,6 +43,56 @@ let get_tags t =
       | None -> [] )
   | None -> []
 
+let tokenize t =
+  let rec _tokenize markdown =
+    List.fold
+      ~init:([] : string list)
+      ~f:(fun accm entry ->
+        match entry with
+        | Omd.Text text -> accm @ String.split_on_chars ~on:[ ' ' ] text
+        | Omd.H1 header -> accm @ _tokenize header
+        | Omd.H2 header -> accm @ _tokenize header
+        | Omd.H3 header -> accm @ _tokenize header
+        | Omd.H4 header -> accm @ _tokenize header
+        | Omd.H5 header -> accm @ _tokenize header
+        | Omd.H6 header -> accm @ _tokenize header
+        | Omd.Paragraph paragraph -> accm @ _tokenize paragraph
+        | Omd.Emph text -> accm @ _tokenize text
+        | Omd.Bold text -> accm @ _tokenize text
+        | Omd.Ul markdown_list ->
+            let inner =
+              List.fold ~init:[]
+                ~f:(fun accm entry -> accm @ _tokenize entry)
+                markdown_list
+            in
+            accm @ inner
+        | Omd.Ol markdown_list ->
+            let inner =
+              List.fold ~init:[]
+                ~f:(fun accm entry -> accm @ _tokenize entry)
+                markdown_list
+            in
+            accm @ inner
+        | Omd.Ulp markdown_list ->
+            let inner =
+              List.fold ~init:[]
+                ~f:(fun accm entry -> accm @ _tokenize entry)
+                markdown_list
+            in
+            accm @ inner
+        | Omd.Olp markdown_list ->
+            let inner =
+              List.fold ~init:[]
+                ~f:(fun accm entry -> accm @ _tokenize entry)
+                markdown_list
+            in
+            accm @ inner
+        | _ -> accm)
+      markdown
+  in
+
+  _tokenize t.markdown
+
 let get_data t =
   let data =
     List.filter_map
@@ -204,5 +254,4 @@ module Filter = struct
         List.count ~f:(fun filter -> filter note) filters > 0
         || List.length filters = 0)
       notes
-
 end
