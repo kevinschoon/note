@@ -46,7 +46,6 @@ note create -stdin <<EOF
   - style: Plena
   - style: Reggaetón
     influenced:
-    - style: Latin Trap
     - style: Bachatón
 ```
 EOF
@@ -63,9 +62,6 @@ note cat -encoding json "Musical Styles" | jq .data[0]
       {
         "style": "Reggaetón",
         "influenced": [
-          {
-            "style": "Latin Trap"
-          },
           {
             "style": "Bachatón"
           }

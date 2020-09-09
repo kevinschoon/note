@@ -1,11 +1,11 @@
 (executable
  (public_name note)
  (name note)
- (libraries note_lib core)
- (preprocess
-  (pps ppx_jane))
+ (libraries note_lib)
  (modes exe)
  (ocamlopt_flags))
 
-(documentation 
- (package note))
+ (install
+  (section man)
+  (files ../doc/note.1)
+ )

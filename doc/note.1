@@ -1,0 +1,203 @@
+.TH "Note" 7 2020-09-09
+.SH Note 🐪
+.LP
+\f[CR]Note\f[R] is a simple CLI based note taking application. 
+.SS The Anatomy of a Note
+.LP
+A note is a simple markdown document that contains zero or more instances of structured data encoded as YAML or JSON. Notes can optionally contain \f[CR]front-matter\f[R] at the head of each file, which is YAML or JSON enclosed by a pair of \f[CR]---\f[R].
+.sp 1
+.nf
+.ft CR
+---
+title: This is a Note
+tags: [ocaml, programming]
+---
+
+# Hello World!
+
+Today will be a nice day.
+.ft
+.fi
+.SS Configuration
+.LP
+The behavior of \f[CR]note\f[R] can be configured with yaml file stored in \f[CR]\(ti/.config/note/config.yaml\f[R] and configure itself per the XDG Base Directory 
+\f[I]specification\f[R].
+You can view the resolved configuration by running \f[CR]note config\f[R]:
+.sp 1
+.nf
+.ft CR
+state_dir: /home/kevin/.local/share/note
+lock_file: /home/kevin/.local/share/note.lock
+editor: nvim
+on_modification: note_commit.sh
+.ft
+.fi
+.SS Structured Data
+.LP
+Notes that contain code blocks with structured data as well as front-matter are automatically parsed and exposed via the command API.
+.SS Example
+.sp 1
+.nf
+.ft CR
+note create -stdin <<EOF
+
+# Musical Styles
+
+\(ga\(ga\(gayaml
+- style: Bomba
+  influenced:
+  - style: Plena
+  - style: Reggaetón
+    influenced:
+    - style: Latin Trap
+    - style: Bachatón
+\(ga\(ga\(ga
+EOF
+
+# Now let's inspect the code block with jq
+note cat -encoding json "Musical Styles" | jq .data[0]
+[
+  {
+    "style": "Bomba",
+    "influenced": [
+      {
+        "style": "Plena"
+      },
+      {
+        "style": "Reggaetón",
+        "influenced": [
+          {
+            "style": "Latin Trap"
+          },
+          {
+            "style": "Bachatón"
+          }
+        ]
+      }
+    ]
+  }
+]
+.ft
+.fi
+.SS The State Directory
+.LP
+Each note is stored as a flat file inside the \f[CR]state_dir\f[R] with a slug that corresponds to the 
+date (YYYYMMDD) on which it was created. If multiple notes are created on one day, an index will
+be appended to the file.
+.sp 1
+.nf
+.ft CR
+$ tree \(ti/.local/share/note/
+/home/kevin/.local/share/note/
+├── note-20200818-1.md
+├── note-20200819-1.md
+├── note-20200819-2.md
+└── note-20200819-3.md
+.ft
+.fi
+.SS Persisting Notes with Git
+.LP
+If the \f[CR]on_modification\f[R] configuration option is set it will be called each time a note is modified. This feature can be used to automatically commit your notes to a git repository with a script such as below:
+.sp 1
+.nf
+.ft CR
+#!/bin/bash
+# This is an example script that can be used in conjunction with the
+# on_modification config option to commit every note change to a git
+# repository. You'll need to place it somewhere on your $PATH. This
+# script assumes that your state_dir is also a git repository.
+set -e
+
+STATE_DIR="$(note config -get state_dir)"
+
+pushd "$STATE_DIR"
+git add --all
+git commit -m 'automated commit'
+popd
+.ft
+.fi
+.SS Web UI
+.LP
+Notes are stored in a format that is compatible with the static website generator 
+\f[I]Hugo\f[R]
+and thus you can point your \f[CR]state_dir\f[R] to a Hugo content directory and get a web based interface for all of your notes.
+.SS Subcommands
+.SS Cat
+.LP
+Write one or more notes to stdout. By default the cat command will write every note to stdout as plain text however the encoding can be adjusted to \f[CR]yaml\f[R] or \f[CR]json\f[R] for consumption by other tools.
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# print the parsed content of the fuubar note
+note cat fuubar
+# write all commands as a json list
+note cat -encoding json
+.ft
+.fi
+.SS Config
+.LP
+Display the current configuration as inferred by Note. It is also possible to extract specific values by specifying a key value.
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# display the current configuration
+note config
+# extract a specific value from the configuration
+note config -get state_dir
+.ft
+.fi
+.SS Create
+.LP
+Create a new note and save it to disk in your configured \f[CR]state_dir\f[R]. The \f[CR]on_modification\f[R] call back will be invoked if the file is committed to disk. 
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# create a new note with the given title and tags
+note create "Remember The Milk" groceries fuu bar
+# create a note by reading from stdin
+note create -stdin <<EOF
+# My Important Note
+
+Hello World!
+EOF
+# the title will be inferred from the heading
+note ls "My Important Note"
+.ft
+.fi
+.SS Delete
+.LP
+Delete the first note that matches the filter criteria. The \f[CR]on_modification\f[R] call back will be invoked if the note is deleted. 
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# delete the note called fuubar
+
+note delete fuubar
+.ft
+.fi
+.SS Edit
+.LP
+Select a note that matches the filter criteria and open it in your \f[CR]$EDITOR\f[R]. The \f[CR]on_modification\f[R] call back will be invoked if the edited file differs from the original. 
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# edit the fuubar note
+note edit fuubar
+.ft
+.fi
+.SS List
+.LP
+List notes that match the filter criteria, if no filter criteria is given all notes will be listed
+.SS Examples
+.sp 1
+.nf
+.ft CR
+# list all notes
+note ls
+.ft
+.fi
