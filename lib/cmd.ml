@@ -42,11 +42,6 @@ let encode_value value = function
       | Config config -> Config.to_string config
       | Note note -> Note.to_string note )
 
-let format_note note =
-  let open ANSITerminal in
-  let title = Note.get_title note in
-  printf [ ANSITerminal.Bold ] "%s\n" title
-
 (*
  * commands
  *)
@@ -216,10 +211,9 @@ note delete fuubar
         in
         match note with
         | Some (note, path) ->
-            Io.delete 
-            ~callback:(get cfg "on_modification")
-            ~title: (Note.get_title note)
-            path
+            Io.delete
+              ~callback:(get cfg "on_modification")
+              ~title:(Note.get_title note) path
         | None -> failwith "not found"]
 
 let edit_note =
@@ -267,6 +261,7 @@ note edit fuubar
         | None -> failwith "not found"]
 
 let list_notes =
+  let open Note.Display in
   let open Command.Let_syntax in
   Command.basic ~summary:"list notes"
     ~readme:(fun () ->
@@ -303,7 +298,7 @@ note ls
                ~f:(fun path -> Note.of_string (In_channel.read_all path))
                paths)
         in
-        List.iter ~f:(fun note -> format_note note) notes]
+        print_short ~style:Fancy notes]
 
 let run =
   Command.run
