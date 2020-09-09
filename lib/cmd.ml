@@ -298,6 +298,7 @@ note ls
 
 let run =
   Command.run
+    ~version: "%%VERSION%%"
     (Command.group ~summary:"Note is a simple CLI based note taking application"
        [
          ("cat", cat_note);

@@ -26,10 +26,11 @@ USER opam
 
 RUN cd /src \
 	&& eval "$(opam env)" \
-	&& dune build
+#	&& dune subst \
+#    && dune build
 
-FROM debian:stable
+#FROM debian:stable
 
-COPY --from=0 /src/_build/default/bin/note.exe /usr/bin/note
+#COPY --from=0 /src/_build/default/bin/note.exe /usr/bin/note
 
-ENTRYPOINT ["/usr/bin/note"]
+#ENTRYPOINT ["/usr/bin/note"]

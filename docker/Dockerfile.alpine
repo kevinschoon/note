@@ -2,7 +2,7 @@ FROM ocaml/opam2:alpine
 
 USER root
 
-RUN apk --update-cache add m4
+RUN apk --update-cache add linux-headers m4
 
 # install dependencies first to avoid re-installation
 # when the a non-opam file in the repository changes.
@@ -26,7 +26,8 @@ USER opam
 
 RUN cd /src \
     && eval "$(opam env)" \
-	&& dune build
+	&& dune subst \
+    && dune build
 
 FROM alpine:latest
 
