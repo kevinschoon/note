@@ -12,12 +12,9 @@ COPY note.opam /src/
 USER opam
 
 RUN opam repository set-url default https://opam.ocaml.org \
-	&& opam install dune 
-
-RUN cd /src \
-	# jsonpath is not yet in opam
-	&& opam pin add jsonpath git+https://github.com/kevinschoon/jsonpath \
-	&& opam install --deps-only .
+	&& opam install dune \
+    && cd /src \
+    && opam install --deps-only .
 
 USER root
 

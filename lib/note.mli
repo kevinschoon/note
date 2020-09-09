@@ -46,27 +46,21 @@ val of_string : string -> t
 val to_json : t -> [> Ezjsonm.t ]
 
 module Filter : sig
-  type strategy = Keys | Path | Subset
+  type strategy = Keys | Fulltext
 
-  val title : string -> t -> bool
-
-  val tags : string -> t -> bool
-
-  val subset : Ezjsonm.value -> t -> bool
-
-  val jsonpath : ?other:Ezjsonm.value option -> Jsonpath.t -> t -> bool
-
-  val of_strings : strategy -> string list -> (t -> bool) list
-
-  val find_one : (t -> bool) list -> t list -> t option
+  val find_one : ?strategy:strategy -> args:string list -> t list -> t option
 
   val find_one_with_paths :
-    (t -> bool) list -> (t * string) list -> (t * string) option
+    ?strategy:strategy ->
+    args:string list ->
+    (t * string) list ->
+    (t * string) option
 
-  val find_many : (t -> bool) list -> t list -> t list
+  val find_many : ?strategy:strategy -> args:string list -> t list -> t list
 end
 
 module Display : sig
   type style = Fancy | Simple
+
   val print_short : style:style -> t list -> unit
 end

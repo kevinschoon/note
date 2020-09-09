@@ -76,24 +76,6 @@ note cat -encoding json "Musical Styles" | jq .data[0]
 ]
 ````
 
-## Filtering Notes
-
-Notes can be filtered by three methods: `Keys`, `Path`, or`Subset`.
-
-### Example
-
-```bash
-# String based keys
-note ls "Bomba"
-Musical Styles
-# Filter by Subset
-note ls -filter Subset '{"style": "Bachatón"}'
-Musical Styles
-# With a JSONPath expression
-note ls -filter Path '.data[0][0].style' 'Bomba'
-Musical Styles
-```
-
 ## The State Directory
 
 Each note is stored as a flat file inside the `state_dir` with a slug that corresponds to the 

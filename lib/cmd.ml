@@ -18,14 +18,6 @@ let encoding_argument =
       | "Text" | "text" | "TEXT" -> Text
       | _ -> failwith "unsupported encoding type")
 
-let filter_argument =
-  Command.Arg_type.create (fun encoding_str ->
-      match encoding_str with
-      | "Keys" | "keys" | "KEYS" -> Note.Filter.Keys
-      | "Path" | "path" | "PATH" -> Note.Filter.Path
-      | "Subset" | "subset" | "SUBSET" -> Note.Filter.Subset
-      | _ -> failwith "unsupported encoding type")
-
 type value = Config of Config.t | Note of Note.t
 
 let encode_value value = function
@@ -64,10 +56,8 @@ note cat -encoding json
 |})
     [%map_open
       let filter_args = anon (sequence ("filters" %: string))
-      and filter_kind =
-        flag "filter"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"strategy [Keys | Path | Subset] (default: Keys)"
+      and fulltext =
+       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
           (optional_with_default Text encoding_argument)
@@ -83,9 +73,12 @@ note cat -encoding json
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let open Note.Filter in
+        let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
-          Note.Filter.find_many
-            (Note.Filter.of_strings filter_kind filter_args)
+          find_many
+           ?strategy:filter_kind
+           ~args: filter_args
             (List.map
                ~f:(fun path -> Note.of_string (In_channel.read_all path))
                paths)
@@ -186,10 +179,8 @@ note delete fuubar
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: string))
-      and filter_kind =
-        flag "kind"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
+      and fulltext =
+       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
         let open Config in
@@ -201,9 +192,12 @@ note delete fuubar
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let open Note.Filter in
+        let filter_kind = if fulltext then Some Fulltext else None in
         let note =
           Note.Filter.find_one_with_paths
-            (Note.Filter.of_strings filter_kind filter_args)
+           ?strategy: filter_kind
+           ~args: filter_args
             (List.map
                ~f:(fun path ->
                  (Note.of_string (In_channel.read_all path), path))
@@ -230,10 +224,8 @@ note edit fuubar
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: string))
-      and filter_kind =
-        flag "kind"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
+      and fulltext =
+       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
         let open Config in
@@ -245,9 +237,12 @@ note edit fuubar
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let open Note.Filter in
+        let filter_kind = if fulltext then Some Fulltext else None in
         let note =
           Note.Filter.find_one_with_paths
-            (Note.Filter.of_strings filter_kind filter_args)
+           ?strategy: filter_kind
+           ~args: filter_args
             (List.map
                ~f:(fun path ->
                  (Note.of_string (In_channel.read_all path), path))
@@ -276,10 +271,8 @@ note ls
 |})
     [%map_open
       let filter_args = anon (sequence ("args" %: string))
-      and filter_kind =
-        flag "filter"
-          (optional_with_default Note.Filter.Keys filter_argument)
-          ~doc:"filter kind"
+      and fulltext =
+       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
         let open Config in
@@ -291,9 +284,12 @@ note ls
               Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
             slugs
         in
+        let open Note.Filter in
+        let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
           Note.Filter.find_many
-            (Note.Filter.of_strings filter_kind filter_args)
+           ?strategy: filter_kind
+           ~args: filter_args
             (List.map
                ~f:(fun path -> Note.of_string (In_channel.read_all path))
                paths)

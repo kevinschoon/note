@@ -158,7 +158,7 @@ let of_string data =
     { frontmatter; markdown }
 
 module Filter = struct
-  type strategy = Keys | Path | Subset
+  type strategy = Keys | Fulltext
 
   let title key note = String.equal key (get_title note)
 
@@ -166,65 +166,8 @@ module Filter = struct
     let tags = get_tags note in
     List.count ~f:(fun tag -> String.equal key tag) tags > 0
 
-  let subset entry note =
-    let rec is_subset json subset =
-      let open Json_derivers.Jsonm in
-      if compare (Ezjsonm.wrap json) (Ezjsonm.wrap subset) = 0 then true
-      else
-        match json with
-        | `A lst -> List.count ~f:(fun entry -> is_subset entry subset) lst > 0
-        | `O dct ->
-            List.count ~f:(fun (_, entry) -> is_subset entry subset) dct > 0
-        | _ -> false
-    in
-
-    match note.frontmatter with
-    | Some fm ->
-        (* check frontmatter first *)
-        if is_subset (Ezjsonm.value fm) entry then true
-        else is_subset (get_data note) entry
-    | None -> is_subset (get_data note) entry
-
-  let jsonpath ?(other = None) path note =
-    let open Json_derivers.Jsonm in
-    let open Jsonpath in
-    let filter_data =
-      List.count
-        ~f:(fun value ->
-          match other with
-          | Some doc -> compare (Ezjsonm.wrap value) (Ezjsonm.wrap doc) > 0
-          | None -> true)
-        (Jsonm.select path (get_data note))
-      > 0
-    in
-    match note.frontmatter with
-    | Some fm ->
-        if
-          List.count
-            ~f:(fun value ->
-              match other with
-              | Some doc -> compare (Ezjsonm.wrap value) (Ezjsonm.wrap doc) > 0
-              | None -> true)
-            (Jsonm.select path (Ezjsonm.value fm))
-          > 0
-        then true
-        else filter_data
-    | None -> filter_data
-
-  let of_strings (strategy : strategy) (args : string list) =
+  let of_strings strategy args =
     match strategy with
-    | Path ->
-        if List.length args % 2 = 0 then
-          List.filter_mapi
-            ~f:(fun i arg ->
-              if i % 2 = 0 then
-                let path = Jsonpath.of_string arg in
-                let doc_string = List.nth_exn args (i + 1) in
-                let other = Ezjsonm.value (Ezjsonm.from_string doc_string) in
-                Some (jsonpath ~other:(Some other) path)
-              else None)
-            args
-        else List.map ~f:(fun arg -> jsonpath (Jsonpath.of_string arg)) args
     | Keys ->
         List.map
           ~f:(fun arg ->
@@ -232,23 +175,26 @@ module Filter = struct
             let has_tag = tags arg in
             fun note -> has_title note || has_tag note)
           args
-    | Subset -> List.map ~f:(fun arg -> subset (Ezjsonm.from_string arg)) args
+    | Fulltext -> failwith "not implemented"
 
-  let find_one filters notes =
+  let find_one ?(strategy=Keys) ~args notes =
+    let filters = of_strings strategy args in
     List.find
       ~f:(fun note ->
         List.count ~f:(fun filter -> filter note) filters > 0
         || List.length filters = 0)
       notes
 
-  let find_one_with_paths filters notes =
+  let find_one_with_paths ?(strategy=Keys) ~args notes =
+    let filters = of_strings strategy args in
     List.find
       ~f:(fun (note, _) ->
         List.count ~f:(fun filter -> filter note) filters > 0
         || List.length filters = 0)
       notes
 
-  let find_many filters notes =
+  let find_many ?(strategy=Keys) ~args notes =
+    let filters = of_strings strategy args in
     List.filter
       ~f:(fun note ->
         List.count ~f:(fun filter -> filter note) filters > 0
