@@ -2,7 +2,7 @@ FROM ocaml/opam2:debian-stable
 
 USER root
 
-RUN apt-get update && apt-get install -yyq linux-headers-amd64 m4 pkg-config
+RUN apt-get update && apt-get install -yyq m4 pkg-config
 
 # install dependencies first to avoid re-installation
 # when the a non-opam file in the repository changes.
