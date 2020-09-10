@@ -8,6 +8,22 @@ let init_config path =
   Config.initialize config_path config;
   config
 
+let get_slugs =
+  let open Config in
+  let cfg = init_config None in
+  let slugs = Slug.load (get_exn cfg "state_dir") in
+  List.map
+    ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
+    slugs
+
+let get_notes_with_paths =
+  List.map
+    ~f:(fun path -> (Note.of_string (In_channel.read_all path), path))
+    get_slugs
+
+let get_notes =
+  List.map ~f:(fun path -> Note.of_string (In_channel.read_all path)) get_slugs
+
 type encoding = Json | Yaml | Text
 
 let encoding_argument =
@@ -17,6 +33,19 @@ let encoding_argument =
       | "Yaml" | "yaml" | "YAML" -> Yaml
       | "Text" | "text" | "TEXT" -> Text
       | _ -> failwith "unsupported encoding type")
+
+let filter_arg =
+  Command.Arg_type.create
+    ~complete:(fun _ ~part ->
+      let notes = get_notes in
+      List.filter_map
+        ~f:(fun note ->
+          let title = Note.get_title note in
+          if String.equal part "" then Some title
+          else if String.is_substring ~substring:part title then Some title
+          else None)
+        notes)
+    (fun filter -> filter)
 
 type value = Config of Config.t | Note of Note.t
 
@@ -55,33 +84,20 @@ note cat fuubar
 note cat -encoding json
 |})
     [%map_open
-      let filter_args = anon (sequence ("filters" %: string))
+      let filter_args = anon (sequence ("filter" %: filter_arg))
       and fulltext =
-       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
+        flag "fulltext" no_arg
+          ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
           (optional_with_default Text encoding_argument)
           ~doc:"format [Text | Json | Yaml] (default: Text)"
       in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
         let open Note.Filter in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
-          find_many
-           ?strategy:filter_kind
-           ~args: filter_args
-            (List.map
-               ~f:(fun path -> Note.of_string (In_channel.read_all path))
-               paths)
+          find_many ?strategy:filter_kind ~args:filter_args get_notes
         in
         List.iter
           ~f:(fun note -> print_endline (encode_value (Note note) encoding))
@@ -178,31 +194,21 @@ Examples
 note delete fuubar
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: string))
+      let filter_args = anon (sequence ("filter" %: filter_arg))
       and fulltext =
-       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
+        flag "fulltext" no_arg
+          ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
         let open Config in
         let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
         let open Note.Filter in
         let filter_kind = if fulltext then Some Fulltext else None in
         let note =
-          Note.Filter.find_one_with_paths
-           ?strategy: filter_kind
-           ~args: filter_args
-            (List.map
-               ~f:(fun path ->
-                 (Note.of_string (In_channel.read_all path), path))
-               paths)
+          Note.Filter.find_one_with_paths ?strategy:filter_kind
+            ~args:filter_args get_notes_with_paths
         in
+
         match note with
         | Some (note, path) ->
             Io.delete
@@ -223,30 +229,19 @@ Examples
 note edit fuubar
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: string))
+      let filter_args = anon (sequence ("filter" %: filter_arg))
       and fulltext =
-       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
+        flag "fulltext" no_arg
+          ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
         let open Config in
         let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
         let open Note.Filter in
         let filter_kind = if fulltext then Some Fulltext else None in
         let note =
-          Note.Filter.find_one_with_paths
-           ?strategy: filter_kind
-           ~args: filter_args
-            (List.map
-               ~f:(fun path ->
-                 (Note.of_string (In_channel.read_all path), path))
-               paths)
+          Note.Filter.find_one_with_paths ?strategy:filter_kind
+            ~args:filter_args get_notes_with_paths
         in
         match note with
         | Some (_, path) ->
@@ -270,35 +265,25 @@ note ls
 ```
 |})
     [%map_open
-      let filter_args = anon (sequence ("args" %: string))
+      let filter_args = anon (sequence ("filter" %: filter_arg))
       and fulltext =
-       flag "fulltext" (no_arg) ~doc:"perform a fulltext search instead of just key comparison"
+        flag "fulltext" no_arg
+          ~doc:"perform a fulltext search instead of just key comparison"
+      and simple =
+        flag "simple" no_arg ~doc:"simple program output (machine readable)"
       in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slugs = Slug.load (get_exn cfg "state_dir") in
-        let paths =
-          List.map
-            ~f:(fun s ->
-              Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-            slugs
-        in
         let open Note.Filter in
+        let style = if simple then Simple else Fancy in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
-          Note.Filter.find_many
-           ?strategy: filter_kind
-           ~args: filter_args
-            (List.map
-               ~f:(fun path -> Note.of_string (In_channel.read_all path))
-               paths)
+          Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
+            get_notes
         in
-        print_short ~style:Fancy notes]
+        print_short ~style notes]
 
 let run =
-  Command.run
-    ~version: "%%VERSION%%"
+  Command.run ~version:"%%VERSION%%"
     (Command.group ~summary:"Note is a simple CLI based note taking application"
        [
          ("cat", cat_note);

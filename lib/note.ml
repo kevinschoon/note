@@ -177,7 +177,7 @@ module Filter = struct
           args
     | Fulltext -> failwith "not implemented"
 
-  let find_one ?(strategy=Keys) ~args notes =
+  let find_one ?(strategy = Keys) ~args notes =
     let filters = of_strings strategy args in
     List.find
       ~f:(fun note ->
@@ -185,7 +185,7 @@ module Filter = struct
         || List.length filters = 0)
       notes
 
-  let find_one_with_paths ?(strategy=Keys) ~args notes =
+  let find_one_with_paths ?(strategy = Keys) ~args notes =
     let filters = of_strings strategy args in
     List.find
       ~f:(fun (note, _) ->
@@ -193,7 +193,7 @@ module Filter = struct
         || List.length filters = 0)
       notes
 
-  let find_many ?(strategy=Keys) ~args notes =
+  let find_many ?(strategy = Keys) ~args notes =
     let filters = of_strings strategy args in
     List.filter
       ~f:(fun note ->
@@ -233,23 +233,26 @@ module Display = struct
 
   let print_short ~style notes =
     let columns =
-      [ (([ Bold ], "title"), ([ Bold ], "tags"), ([ Bold ], "words")) ]
-      @ List.map
-          ~f:(fun note ->
-            let title = get_title note in
-            let tags = String.concat ~sep:"|" (get_tags note) in
-            let word_count = Core.sprintf "%d" (List.length (tokenize note)) in
-            (([], title), ([], tags), ([], word_count)))
-          notes
+      List.map
+        ~f:(fun note ->
+          let title = get_title note in
+          let tags = String.concat ~sep:"|" (get_tags note) in
+          let word_count = Core.sprintf "%d" (List.length (tokenize note)) in
+          (([], title), ([], tags), ([], word_count)))
+        notes
     in
     match style with
     | Simple ->
         List.iter
           ~f:(fun (col1, col2, col3) ->
-            let (_, text1), (_, text2), (_, text3) = (col1, col2, col3) in
-            print_endline (Core.sprintf "%s %s %s" text1 text2 text3))
+            let (_, text1), (_, _), (_, _) = (col1, col2, col3) in
+            print_endline (Core.sprintf "%s" text1))
           columns
     | Fancy ->
+        let columns =
+          [ (([ Bold ], "title"), ([ Bold ], "tags"), ([ Bold ], "words")) ]
+          @ columns
+        in
         let max1, max2, max3 =
           List.fold ~init:(0, 0, 0)
             ~f:(fun accm pair ->

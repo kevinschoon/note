@@ -1,11 +1,12 @@
-# TODO: Core.Command completion is terrible 
-function _jsautocom_742571 {
+function _note_complete {
   export COMP_CWORD
   COMP_WORDS[0]=note
   if type readarray > /dev/null
   then readarray -t COMPREPLY < <("${COMP_WORDS[@]}")
   else IFS="
 " read -d "" -A COMPREPLY < <("${COMP_WORDS[@]}")
+  echo $COMP_CWORD $COMP_WORDS
   fi
 }
-complete -F _jsautocom_742571 note
+
+complete -F _note_complete note
