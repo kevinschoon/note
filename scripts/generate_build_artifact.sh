@@ -29,13 +29,16 @@ dune clean
 dune build
 
 PKG="note-$PREFIX-$VERSION"
-mkdir -p "pkg/$PKG"
-cp -rLv _build/install/default/* "pkg/$PKG/"
-rm -vf "pkg/$PKG/bin/note"
+PKG_PATH="pkg/$PKG"
+PKG_TARGET="pkg/$PKG.tar.gz"
+
+mkdir -p "$PKG_PATH"
+cp -rLv _build/install/default/* "$PKG_PATH"
+rm -vf "$PKG_PATH/bin/note"
 docker build -t "$PKG" -f "$DOCKER_FILE" .
 container_id="$(docker create $PKG)"
-docker cp "$container_id:/usr/bin/note" "pkg/$PKG/bin/note"
+docker cp "$container_id:/usr/bin/note" "$PKG_PATH/bin/note"
 docker rm "$container_id" 1>/dev/null
 
-tar -C "pkg/$PKG" -czvf "pkg/$PKG.tar.gz" .
-md5sum "pkg/$PKG.tar.gz" > "pkg/$PKG.tar.gz.md5"
+tar -C "$PKG_PATH" -czvf "$PKG_TARGET" .
+md5sum "$PKG_TARGET" > "$PKG_TARGET.md5"
