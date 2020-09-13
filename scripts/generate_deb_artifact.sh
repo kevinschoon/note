@@ -32,7 +32,5 @@ EOF
 cp -r "$BUILD_ARTIFACT"/* "$PKG_PATH/"
 
 # TODO: dune doesn't allow this path somehow
-mkdir -p "$PKG_PATH/usr/share/bash-completion/completions"
-mv "$PKG_PATH/share/note/note.bash" "$PKG_PATH/usr/share/bash-completion/completions/"
-dpkg-deb -b "$PKG_PATH"
+dpkg-deb --root-owner-group -b "$PKG_PATH"
 md5sum "$PKG_TARGET" > "$PKG_TARGET.md5"
