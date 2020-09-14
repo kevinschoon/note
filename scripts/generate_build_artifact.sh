@@ -39,7 +39,7 @@ mkdir -p usr/bin
 mkdir -p usr/share/man/man1
 cp "$SOURCE/man/man1/note.1" usr/share/man/man1/
 mkdir -p usr/share/bash-completion/completion
-cp "$SOURCE/share/note/note.bash" usr/share/bash-completion/completion/
+cp "$SOURCE/share/note/note" usr/share/bash-completion/completion/
 gzip usr/share/man/man1/note.1
 popd
 

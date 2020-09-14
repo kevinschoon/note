@@ -10,4 +10,4 @@
   (files ../doc/note.1))
  (install
   (section share)
-  (files ../completion/note.bash))
+  (files ../completion/note))
