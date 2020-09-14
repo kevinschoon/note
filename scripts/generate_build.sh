@@ -33,11 +33,11 @@ SOURCE="$(realpath "_build/install/default")"
 mkdir -p "$PKG_PATH"
 pushd "$PKG_PATH"
 mkdir -p usr/bin
-mkdir -p usr/share/man/man1
-cp "$SOURCE/man/man1/note.1" usr/share/man/man1/
+mkdir -p usr/share/man/man7
+cp "$SOURCE/man/man7/note.7" usr/share/man/man7/
 mkdir -p usr/share/bash-completion/completions
 cp "$SOURCE/share/note/note" usr/share/bash-completion/completions/
-gzip usr/share/man/man1/note.1
+gzip usr/share/man/man7/note.7
 popd
 
 docker build -t "$PKG" -f "$DOCKER_FILE" .

@@ -21,6 +21,6 @@ md5sums=($MD5SUM)
 package() {
 	install -Dm755 usr/bin/note -t "\${pkgdir}/usr/bin/"
 	install -Dm644 usr/share/bash-completion/completions/note -t \${pkgdir}/usr/share/bash-completion/completions/
-	install -Dm644 usr/share/man/man1/note.1.gz -t \${pkgdir}/usr/share/man/man1/
+	install -Dm644 usr/share/man/man7/note.7.gz -t \${pkgdir}/usr/share/man/man7/
 }
 EOF

@@ -7,7 +7,7 @@
 
  (install
   (section man)
-  (files ../doc/note.1))
+  (files ../doc/note.7))
  (install
   (section share)
   (files ../completion/note))
