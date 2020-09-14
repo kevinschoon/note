@@ -25,9 +25,6 @@ _usage() {
 # TODO: Capture more build specifics
 VERSION="$(git describe --always)"
 
-dune clean
-dune build
-
 PKG="note-$PREFIX-$VERSION"
 PKG_PATH="pkg/$PKG"
 PKG_TARGET="pkg/$PKG.tar.gz"
@@ -38,8 +35,8 @@ pushd "$PKG_PATH"
 mkdir -p usr/bin
 mkdir -p usr/share/man/man1
 cp "$SOURCE/man/man1/note.1" usr/share/man/man1/
-mkdir -p usr/share/bash-completion/completion
-cp "$SOURCE/share/note/note" usr/share/bash-completion/completion/
+mkdir -p usr/share/bash-completion/completions
+cp "$SOURCE/share/note/note" usr/share/bash-completion/completions/
 gzip usr/share/man/man1/note.1
 popd
 
