@@ -8,7 +8,8 @@ REMOTE_URL="https://github.com/kevinschoon/note/releases/download/$VERSION/$TARB
 MD5SUM="$(cat "pkg/$TARBALL.md5" |cut -d ' ' -f 1)"
 
 cat >pkg/PKGBUILD-$VERSION<<EOF
-pkgname=note
+# Maintainer: Kevin Schoon <kevinschoon@gmail.com>
+pkgname=note-bin
 pkgver=$VERSION
 pkgrel=1
 pkgdesc="Simple Note Taking CLI"
