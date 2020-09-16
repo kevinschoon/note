@@ -25,3 +25,7 @@ package() {
 	install -Dm644 usr/share/man/man7/note.7.gz -t \${pkgdir}/usr/share/man/man7/
 }
 EOF
+
+pushd pkg
+makepkg -p "PKGBUILD-$VERSION" --printsrcinfo > "SRCINFO-$VERSION"
+popd
