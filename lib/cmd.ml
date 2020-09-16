@@ -270,7 +270,7 @@ note ls
       in
       fun () ->
         let open Note.Filter in
-        let style = if simple then Simple else Fancy in
+        let style = if simple then Simple else Fixed in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args

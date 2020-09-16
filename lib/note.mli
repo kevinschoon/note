@@ -57,7 +57,7 @@ module Filter : sig
 end
 
 module Display : sig
-  type style = Fancy | Simple
+  type style = Fixed | Wide | Simple
 
   type cell = string * ANSITerminal.style list
 
