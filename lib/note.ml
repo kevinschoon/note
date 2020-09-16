@@ -272,4 +272,5 @@ module Display = struct
         let widths = fix_right (fixed_spacing cells) in
         let spaced = apply widths cells in
         List.iter ~f:(fun spaced_row -> print_endline spaced_row) spaced
+
 end

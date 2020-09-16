@@ -11,14 +11,14 @@ let init_config path =
 let get_notes =
   let open Config in
   let cfg = init_config None in
-  let state_dir = (get_exn cfg "state_dir") in
-  List.map ~f: (
-    fun slug ->
-    let data = In_channel.read_all (Slug.get_path slug) in
-    Note.of_string ~data: data slug
-  ) (Slug.load state_dir)
+  let state_dir = get_exn cfg "state_dir" in
+  List.map
+    ~f:(fun slug ->
+      let data = In_channel.read_all (Slug.get_path slug) in
+      Note.of_string ~data slug)
+    (Slug.load state_dir)
 
-type encoding = Json | Yaml | Text
+type encoding = Json | Yaml | Text | Raw
 
 let encoding_argument =
   Command.Arg_type.create (fun encoding_str ->
@@ -26,6 +26,7 @@ let encoding_argument =
       | "Json" | "json" | "JSON" -> Json
       | "Yaml" | "yaml" | "YAML" -> Yaml
       | "Text" | "text" | "TEXT" -> Text
+      | "Raw" | "raw" | "RAW" -> Raw
       | _ -> failwith "unsupported encoding type")
 
 let filter_arg =
@@ -44,6 +45,7 @@ let filter_arg =
 type value = Config of Config.t | Note of Note.t
 
 let encode_value value = function
+  (* TODO: move all of this into the note module *)
   | Json -> (
       match value with
       | Config config -> Ezjsonm.to_string (Config.to_json config)
@@ -56,6 +58,13 @@ let encode_value value = function
       match value with
       | Config config -> Config.to_string config
       | Note note -> Note.to_string note )
+  | Raw -> (
+    match value with
+    | Config config -> Config.to_string config
+    | Note note -> 
+        (In_channel.read_all (Note.get_path note))
+
+  )
 
 (*
  * commands
@@ -196,7 +205,9 @@ note delete fuubar
         let open Note.Filter in
         let filter_kind = if fulltext then Fulltext else Keys in
         let notes = get_notes in
-        let note = Note.Filter.find_one ~strategy:filter_kind ~args:filter_args notes in
+        let note =
+          Note.Filter.find_one ~strategy:filter_kind ~args:filter_args notes
+        in
         match note with
         | Some note ->
             Io.delete
@@ -227,7 +238,7 @@ note edit fuubar
         let cfg = init_config None in
         let open Note.Filter in
         let filter_kind = if fulltext then Fulltext else Keys in
-        let note = find_one ~strategy: filter_kind ~args: filter_args get_notes in
+        let note = find_one ~strategy:filter_kind ~args:filter_args get_notes in
         match note with
         | Some note ->
             Io.edit
