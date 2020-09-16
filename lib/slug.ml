@@ -1,44 +1,48 @@
 open Core
 
-type t = Date.t * int
+type t = { path : string; date : Date.t; index : int }
 
-let to_string slug =
-  let time, index = slug in
-  let date_str = Date.format time "%Y%m%d" in
-  sprintf "note-%s-%d.md" date_str index
+let get_path t = t.path
 
-let of_string slug_str =
+let to_string t =
+  let date_str = Date.format t.date "%Y%m%d" in
+  sprintf "note-%s-%d" date_str t.index
+
+let of_path path =
   (* note-20010103-0.md *)
-  let slug = Filename.chop_extension (Filename.basename slug_str) in
-  let split = String.split ~on:'-' slug in
-  (* TODO: add proper error handling *)
-  ( Date.parse ~fmt:"%Y%m%d" (List.nth_exn split 1),
-    int_of_string (List.nth_exn split 2) )
+  if is_some (String.substr_index ~pattern:"note-" path) then
+    let slug = Filename.chop_extension (Filename.basename path) in
+    let split = String.split ~on:'-' slug in
+    (* TODO: add proper error handling *)
+    let date = Date.parse ~fmt:"%Y%m%d" (List.nth_exn split 1) in
+    let index = int_of_string (List.nth_exn split 2) in
+    Some { path; date; index }
+  else None
 
-let load path =
-  let file_names = Sys.ls_dir path in
+let load state_dir =
   List.filter_map
-    ~f:(fun name ->
-      (* ignore any files that do not match the substring note- *)
-      match String.substr_index ~pattern:"note-" name with
-      | Some _ -> Some (of_string name)
-      | None -> None)
-    file_names
+    ~f:(fun path -> of_path (Filename.concat state_dir path))
+    (Sys.ls_dir state_dir)
 
-let next slugs =
+let next state_dir =
+  let slugs = load state_dir in
   (* find all slugs for today (00:00:00 -> 23:59:59) *)
   let now = Time.now () in
   let today = Time.to_date ~zone:Time.Zone.utc now in
   let tomorrow = Date.add_days today 1 in
   let filtered =
     List.filter
-      ~f:(fun (time, _) -> Date.between ~low:today ~high:tomorrow time)
+      ~f:(fun slug -> Date.between ~low:today ~high:tomorrow slug.date)
       slugs
   in
   let next_int =
     List.fold ~init:(-1)
-      ~f:(fun accm (_, i) -> if i > accm then i else accm)
+      ~f:(fun accm slug -> if slug.index > accm then slug.index else accm)
       filtered
     + 1
   in
-  (today, next_int)
+  let date_str = Date.format today "%Y%m%d" in
+  let path =
+    Filename.concat state_dir (Core.sprintf "%s-%d.md" date_str next_int)
+  in
+  { path; date = today; index = next_int }

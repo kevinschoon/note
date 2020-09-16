@@ -8,21 +8,15 @@ let init_config path =
   Config.initialize config_path config;
   config
 
-let get_slugs =
+let get_notes =
   let open Config in
   let cfg = init_config None in
-  let slugs = Slug.load (get_exn cfg "state_dir") in
-  List.map
-    ~f:(fun s -> Filename.concat (get_exn cfg "state_dir") (Slug.to_string s))
-    slugs
-
-let get_notes_with_paths =
-  List.map
-    ~f:(fun path -> (Note.of_string (In_channel.read_all path), path))
-    get_slugs
-
-let get_notes =
-  List.map ~f:(fun path -> Note.of_string (In_channel.read_all path)) get_slugs
+  let state_dir = (get_exn cfg "state_dir") in
+  List.map ~f: (
+    fun slug ->
+    let data = In_channel.read_all (Slug.get_path slug) in
+    Note.of_string ~data: data slug
+  ) (Slug.load state_dir)
 
 type encoding = Json | Yaml | Text
 
@@ -162,24 +156,21 @@ note ls "My Important Note"
       fun () ->
         let open Config in
         let cfg = init_config None in
-        let next_slug = Slug.next (Slug.load (get_exn cfg "state_dir")) in
-        let target_file =
-          Filename.concat (get_exn cfg "state_dir") (Slug.to_string next_slug)
-        in
+        let slug = Slug.next (get_exn cfg "state_dir") in
         match open_stdin with
         | Some _ ->
             (* reading from stdin so write directly to note *)
             let content = In_channel.input_all In_channel.stdin in
-            let note = Note.build ~tags ~content title in
+            let note = Note.build ~tags ~content ~title slug in
             Io.create
               ~callback:(get cfg "on_modification")
-              ~content:(Note.to_string note) target_file
+              ~content:(Note.to_string note) (Slug.get_path slug)
         | None ->
-            let note = Note.build ~tags ~content:"" title in
+            let note = Note.build ~tags ~content:"" ~title slug in
             let init_content = Note.to_string note in
             Io.create_on_change
               ~callback:(get cfg "on_modification")
-              ~editor:(get_exn cfg "editor") init_content target_file]
+              ~editor:(get_exn cfg "editor") init_content (Slug.get_path slug)]
 
 let delete_note =
   let open Command.Let_syntax in
@@ -203,17 +194,14 @@ note delete fuubar
         let open Config in
         let cfg = init_config None in
         let open Note.Filter in
-        let filter_kind = if fulltext then Some Fulltext else None in
-        let note =
-          Note.Filter.find_one_with_paths ?strategy:filter_kind
-            ~args:filter_args get_notes_with_paths
-        in
-
+        let filter_kind = if fulltext then Fulltext else Keys in
+        let notes = get_notes in
+        let note = Note.Filter.find_one ~strategy:filter_kind ~args:filter_args notes in
         match note with
-        | Some (note, path) ->
+        | Some note ->
             Io.delete
               ~callback:(get cfg "on_modification")
-              ~title:(Note.get_title note) path
+              ~title:(Note.get_title note) (Note.get_path note)
         | None -> failwith "not found"]
 
 let edit_note =
@@ -238,16 +226,13 @@ note edit fuubar
         let open Config in
         let cfg = init_config None in
         let open Note.Filter in
-        let filter_kind = if fulltext then Some Fulltext else None in
-        let note =
-          Note.Filter.find_one_with_paths ?strategy:filter_kind
-            ~args:filter_args get_notes_with_paths
-        in
+        let filter_kind = if fulltext then Fulltext else Keys in
+        let note = find_one ~strategy: filter_kind ~args: filter_args get_notes in
         match note with
-        | Some (_, path) ->
+        | Some note ->
             Io.edit
               ~callback:(get cfg "on_modification")
-              ~editor:(get_exn cfg "editor") path
+              ~editor:(get_exn cfg "editor") (Note.get_path note)
         | None -> failwith "not found"]
 
 let list_notes =

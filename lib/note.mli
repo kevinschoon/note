@@ -1,6 +1,6 @@
 type t
 
-val build : ?tags:string list -> ?content:string -> string -> t
+val build : ?tags:string list -> ?content:string -> title:string -> Slug.t -> t
 (** build a new note *)
 
 val get_title : t -> string
@@ -8,6 +8,9 @@ val get_title : t -> string
 
 val get_tags : t -> string list
 (** access tags in the frontmatter of a note *)
+
+val get_path : t -> string
+(** access the absolute path of a note *)
 
 val tokenize : t -> string list
 (** split each word from the note into a list of string tokens *)
@@ -40,7 +43,7 @@ val get_data : t -> Ezjsonm.t
 val to_string : t -> string
 (** convert a note into a string *)
 
-val of_string : string -> t
+val of_string : data:string -> Slug.t -> t
 (** decode a note from a string *)
 
 val to_json : t -> [> Ezjsonm.t ]
@@ -49,12 +52,6 @@ module Filter : sig
   type strategy = Keys | Fulltext
 
   val find_one : ?strategy:strategy -> args:string list -> t list -> t option
-
-  val find_one_with_paths :
-    ?strategy:strategy ->
-    args:string list ->
-    (t * string) list ->
-    (t * string) option
 
   val find_many : ?strategy:strategy -> args:string list -> t list -> t list
 end

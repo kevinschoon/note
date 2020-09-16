@@ -1,15 +1,15 @@
 open Core
 
-type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t }
+type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t ; slug : Slug.t}
 
-let build ?(tags = []) ?(content = "") title =
+let build ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
     Some
       (Ezjsonm.dict
          [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ])
   in
   let markdown = Omd.of_string content in
-  { frontmatter; markdown }
+  { frontmatter; markdown ; slug}
 
 let get_title t =
   let title =
@@ -42,6 +42,9 @@ let get_tags t =
       | Some v -> Ezjsonm.get_strings v
       | None -> [] )
   | None -> []
+
+let get_path t =
+    Slug.get_path t.slug
 
 let tokenize t =
   let rec _tokenize markdown =
@@ -131,7 +134,7 @@ let to_string t =
         [ "---"; front_matter; "---"; Omd.to_text t.markdown ]
   | None -> Omd.to_text t.markdown
 
-let of_string data =
+let of_string ~data slug =
   let indexes = String.substr_index_all ~may_overlap:true ~pattern:"---" data in
   if List.length indexes >= 2 then
     let meta_str =
@@ -151,11 +154,11 @@ let of_string data =
         (String.slice data (List.nth_exn indexes 1 + 3) (String.length data))
     in
     let frontmatter = Some frontmatter in
-    { frontmatter; markdown }
+    { frontmatter; markdown; slug }
   else
     let frontmatter = None in
     let markdown = Omd.of_string data in
-    { frontmatter; markdown }
+    { frontmatter; markdown; slug}
 
 module Filter = struct
   type strategy = Keys | Fulltext
@@ -181,14 +184,6 @@ module Filter = struct
     let filters = of_strings strategy args in
     List.find
       ~f:(fun note ->
-        List.count ~f:(fun filter -> filter note) filters > 0
-        || List.length filters = 0)
-      notes
-
-  let find_one_with_paths ?(strategy = Keys) ~args notes =
-    let filters = of_strings strategy args in
-    List.find
-      ~f:(fun (note, _) ->
         List.count ~f:(fun filter -> filter note) filters > 0
         || List.length filters = 0)
       notes

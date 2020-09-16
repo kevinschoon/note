@@ -16,14 +16,14 @@ indicating the number of notes that were taken on that date.
 NOTE: Epoch time would be simpler and more accurate but less friendly for reading.
 *)
 
+val get_path : t -> string
+(** return the absolute path of the slug *)
+
 val to_string : t -> string
 (** convert a slug into a string *)
-
-val of_string : string -> t
-(** convert a string into a slug *)
 
 val load : string -> t list
 (** read slugs from the given path *)
 
-val next : t list -> t
+val next : string -> t
 (** create a new slug *)
