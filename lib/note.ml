@@ -263,7 +263,7 @@ module Display = struct
                 let cell_width = List.nth_exn widths i in
                 let padding = cell_width - String.length text in
                 String.concat
-                  [ accm; sprintf styles "%s%s" text (String.make padding ' ') ])
+                  [ accm; (sprintf styles "%s" text) ; (String.make padding ' ') ])
               row;
           ])
       cells
