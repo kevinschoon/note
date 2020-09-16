@@ -6,7 +6,7 @@ let get_path t = t.path
 
 let to_string t =
   let date_str = Date.format t.date "%Y%m%d" in
-  sprintf "note-%s-%d" date_str t.index
+  sprintf "%s-%d" date_str t.index
 
 let of_path path =
   (* note-20010103-0.md *)

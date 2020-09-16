@@ -1,6 +1,6 @@
 open Core
 
-type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t ; slug : Slug.t}
+type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t; slug : Slug.t }
 
 let build ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
@@ -9,7 +9,7 @@ let build ?(tags = []) ?(content = "") ~title slug =
          [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ])
   in
   let markdown = Omd.of_string content in
-  { frontmatter; markdown ; slug}
+  { frontmatter; markdown; slug }
 
 let get_title t =
   let title =
@@ -43,8 +43,7 @@ let get_tags t =
       | None -> [] )
   | None -> []
 
-let get_path t =
-    Slug.get_path t.slug
+let get_path t = Slug.get_path t.slug
 
 let tokenize t =
   let rec _tokenize markdown =
@@ -158,7 +157,7 @@ let of_string ~data slug =
   else
     let frontmatter = None in
     let markdown = Omd.of_string data in
-    { frontmatter; markdown; slug}
+    { frontmatter; markdown; slug }
 
 module Filter = struct
   type strategy = Keys | Fulltext
@@ -214,6 +213,7 @@ module Display = struct
         ("title", [ Bold; Underlined ]);
         ("tags", [ Bold; Underlined ]);
         ("words", [ Bold; Underlined ]);
+        ("slug", [ Bold; Underlined ]);
       ];
     ]
     @ List.fold ~init:[]
@@ -223,7 +223,8 @@ module Display = struct
           let word_count =
             (Core.sprintf "%d" (List.length (tokenize note)), [ Reset ])
           in
-          accm @ [ [ title; tags; word_count ] ])
+          let slug = (Slug.to_string note.slug, [ Reset ]) in
+          accm @ [ [ title; tags; word_count; slug ] ])
         notes
 
   let fixed_spacing cells =
@@ -258,7 +259,7 @@ module Display = struct
                 let cell_width = List.nth_exn widths i in
                 let padding = cell_width - String.length text in
                 String.concat
-                  [ accm; (sprintf styles "%s" text) ; (String.make padding ' ') ])
+                  [ accm; sprintf styles "%s" text; String.make padding ' ' ])
               row;
           ])
       cells
