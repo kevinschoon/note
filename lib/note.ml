@@ -204,75 +204,76 @@ end
 
 module Display = struct
   (* TODO: Colourized tags *)
+
   open ANSITerminal
 
   type style = Fancy | Simple
 
-  (* three string columns where col 2 and 3 float to the right *)
-  let three_col_string max1 max2 max3 col1 col2 col3 =
-    let (s1, t1), (s2, t2), (s3, t3) = (col1, col2, col3) in
-    let width, _ = size () in
-    (* left side *)
-    let l1 = String.concat [ t1; String.make (max1 - String.length t1) ' ' ] in
-    (* right side *)
-    let r1 = String.concat [ String.make (max2 - String.length t2) ' '; t2 ] in
-    let r2 = String.concat [ String.make (max3 - String.length t3) ' '; t3 ] in
-    let padding =
-      String.make
-        (width - (String.length l1 + String.length r1 + String.length r2 + 2))
-        ' '
-    in
-    String.concat
+  type cell = string * ANSITerminal.style list
+
+  type row = cell list
+
+  let to_cells notes =
+    [
       [
-        sprintf s1 "%s" l1;
-        padding;
-        sprintf s2 "%s" r1;
-        "  ";
-        sprintf s3 "%s" r2;
-      ]
+        ("title", [ Bold; Underlined ]);
+        ("tags", [ Bold; Underlined ]);
+        ("words", [ Bold; Underlined ]);
+      ];
+    ]
+    @ List.fold ~init:[]
+        ~f:(fun accm note ->
+          let title = (get_title note, [ Reset ]) in
+          let tags = (String.concat ~sep:"|" (get_tags note), [ Reset ]) in
+          let word_count =
+            (Core.sprintf "%d" (List.length (tokenize note)), [ Reset ])
+          in
+          accm @ [ [ title; tags; word_count ] ])
+        notes
+
+  let fixed_spacing cells =
+    (* find the maximum column length for all cells *)
+    List.fold ~init:[]
+      ~f:(fun accm row ->
+        List.mapi
+          ~f:(fun i col ->
+            let col_length = String.length (fst col) in
+            let current_max =
+              match List.nth accm i with Some len -> len | None -> 0
+            in
+            if col_length > current_max then col_length + 1 else current_max)
+          row)
+      cells
+
+  let fix_right widths =
+    let term_width, _ = size () in
+    let _, right = List.split_n widths 1 in
+    let col_one = List.nth_exn widths 0 in
+    [ col_one + (term_width - List.fold ~init:0 ~f:( + ) widths) ] @ right
+
+  let apply widths cells =
+    List.fold ~init:[]
+      ~f:(fun accm row ->
+        accm
+        @ [
+            List.foldi ~init:""
+              ~f:(fun i accm cell ->
+                let text = fst cell in
+                let styles = snd cell in
+                let cell_width = List.nth_exn widths i in
+                let padding = cell_width - String.length text in
+                String.concat
+                  [ accm; sprintf styles "%s%s" text (String.make padding ' ') ])
+              row;
+          ])
+      cells
 
   let print_short ~style notes =
-    let columns =
-      List.map
-        ~f:(fun note ->
-          let title = get_title note in
-          let tags = String.concat ~sep:"|" (get_tags note) in
-          let word_count = Core.sprintf "%d" (List.length (tokenize note)) in
-          (([], title), ([], tags), ([], word_count)))
-        notes
-    in
     match style with
-    | Simple ->
-        List.iter
-          ~f:(fun (col1, col2, col3) ->
-            let (_, text1), (_, _), (_, _) = (col1, col2, col3) in
-            print_endline (Core.sprintf "%s" text1))
-          columns
+    | Simple -> List.iter ~f:(fun note -> print_endline (get_title note)) notes
     | Fancy ->
-        let columns =
-          [ (([ Bold ], "title"), ([ Bold ], "tags"), ([ Bold ], "words")) ]
-          @ columns
-        in
-        let max1, max2, max3 =
-          List.fold ~init:(0, 0, 0)
-            ~f:(fun accm pair ->
-              let (_, text1), (_, text2), (_, text3) = pair in
-              let col1, col2, col3 =
-                (String.length text1, String.length text2, String.length text3)
-              in
-              let max1, max2, max3 = accm in
-              let max1 = if col1 > max1 then col1 else max1 in
-              let max2 = if col2 > max2 then col2 else max2 in
-              let max3 = if col3 > max3 then col3 else max3 in
-              (max1, max2, max3))
-            columns
-        in
-        List.iter
-          ~f:(fun pair ->
-            let line =
-              three_col_string max1 max2 max3 (fst3 pair) (snd3 pair)
-                (trd3 pair)
-            in
-            print_endline line)
-          columns
+        let cells = to_cells notes in
+        let widths = fix_right (fixed_spacing cells) in
+        let spaced = apply widths cells in
+        List.iter ~f:(fun spaced_row -> print_endline spaced_row) spaced
 end

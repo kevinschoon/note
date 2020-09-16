@@ -62,5 +62,9 @@ end
 module Display : sig
   type style = Fancy | Simple
 
+  type cell = string * ANSITerminal.style list
+
+  type row = cell list
+
   val print_short : style:style -> t list -> unit
 end
