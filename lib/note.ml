@@ -237,7 +237,7 @@ module Display = struct
             let current_max =
               match List.nth accm i with Some len -> len | None -> 0
             in
-            if col_length > current_max then col_length + 1 else current_max)
+            if col_length > current_max then col_length + 2 else current_max)
           row)
       cells
 
