@@ -43,6 +43,6 @@ let next state_dir =
   in
   let date_str = Date.format today "%Y%m%d" in
   let path =
-    Filename.concat state_dir (Core.sprintf "%s-%d.md" date_str next_int)
+    Filename.concat state_dir (Core.sprintf "note-%s-%d.md" date_str next_int)
   in
   { path; date = today; index = next_int }
