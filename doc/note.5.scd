@@ -18,6 +18,21 @@ tags: [ocaml, programming]
 Today will be a nice day.
 ```
 
+## The State Directory
+
+Each note is stored as a flat file inside the `state_dir` with a slug that corresponds to the
+date (YYYYMMDD) on which it was created. If multiple notes are created on one day, an index will
+be appended to the file.
+
+```
+$ tree ~/.local/share/note/
+/home/kevin/.local/share/note/
+├── note-20200818-1.md
+├── note-20200819-1.md
+├── note-20200819-2.md
+└── note-20200819-3.md
+```
+
 ## Configuration
 
 The behavior of *note* can be configured with yaml file stored in *~/.config/note/config.yaml* and configure itself per the XDG Base Directory specification, see https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html. You can view the resolved configuration by running *note config*:
