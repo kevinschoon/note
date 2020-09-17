@@ -1,11 +1,5 @@
 #!/bin/bash
 set -e
 
-TEMP_FILE="$(mktemp)"
-
-echo "title:Note" >> "$TEMP_FILE"
-echo "date:$(date +%Y-%m-%d)" >> "$TEMP_FILE"
-echo >> "$TEMP_FILE"
-cat README.md >> "$TEMP_FILE"
-
-lowdown -sTman "$TEMP_FILE"
+scdoc < doc/note.1.scd > doc/note.1
+scdoc < doc/note.5.scd > doc/note.5

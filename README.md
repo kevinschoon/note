@@ -17,7 +17,6 @@ tags: [ocaml, programming]
 Today will be a nice day.
 ```
 
-
 ## Configuration
 
 The behavior of `note` can be configured with yaml file stored in `~/.config/note/config.yaml` and configure itself per the XDG Base Directory [specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). You can view the resolved configuration by running `note config`:
@@ -110,83 +109,3 @@ popd
 ## Web UI
 
 Notes are stored in a format that is compatible with the static website generator [Hugo](https://gohugo.io/content-management/front-matter/) and thus you can point your `state_dir` to a Hugo content directory and get a web based interface for all of your notes.
-
-## Subcommands
-
-### Cat
-
-Write one or more notes to stdout. By default the cat command will write every note to stdout as plain text however the encoding can be adjusted to `yaml` or `json` for consumption by other tools.
-
-#### Examples
-
-```bash
-# print the parsed content of the fuubar note
-note cat fuubar
-# write all commands as a json list
-note cat -encoding json
-```
-
-### Config
-
-Display the current configuration as inferred by Note. It is also possible to extract specific values by specifying a key value.
-
-#### Examples
-
-```bash
-# display the current configuration
-note config
-# extract a specific value from the configuration
-note config -get state_dir
-```
-
-### Create
-
-Create a new note and save it to disk in your configured `state_dir`. The `on_modification` call back will be invoked if the file is committed to disk. 
-
-#### Examples
-
-```bash
-# create a new note with the given title and tags
-note create "Remember The Milk" groceries fuu bar
-# create a note by reading from stdin
-note create -stdin <<EOF
-# My Important Note
-
-Hello World!
-EOF
-# the title will be inferred from the heading
-note ls "My Important Note"
-```
-
-### Delete
-
-Delete the first note that matches the filter criteria. The `on_modification` call back will be invoked if the note is deleted. 
-
-#### Examples
-
-```bash
-# delete the note called fuubar
-
-note delete fuubar
-```
-
-### Edit
-
-Select a note that matches the filter criteria and open it in your `$EDITOR`. The `on_modification` call back will be invoked if the edited file differs from the original. 
-
-#### Examples
-
-```bash
-# edit the fuubar note
-note edit fuubar
-```
-
-### List
-List notes that match the filter criteria, if no filter criteria is given all notes will be listed
-
-#### Examples
-
-```bash
-# list all notes
-note ls
-```
