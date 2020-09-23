@@ -93,8 +93,8 @@ note cat -encoding json
           ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
-          (optional_with_default Text encoding_argument)
-          ~doc:"format [Text | Json | Yaml] (default: Text)"
+          (optional_with_default Raw encoding_argument)
+          ~doc:"format [Text | Json | Yaml | Raw] (default: Raw)"
       in
       fun () ->
         let open Note.Filter in
