@@ -29,6 +29,14 @@ let encoding_argument =
       | "Raw" | "raw" | "RAW" -> Raw
       | _ -> failwith "unsupported encoding type")
 
+let style_argument =
+  Command.Arg_type.create (fun encoding_str ->
+      match encoding_str with
+      | "Fixed" | "fixed" | "FIXED" -> Note.Display.Fixed
+      | "Wide" | "wide" | "WIDE" -> Note.Display.Wide
+      | "Simple" | "simple" | "SIMPLE" -> Note.Display.Simple
+      | _ -> failwith "unsupported style type")
+
 let filter_arg =
   Command.Arg_type.create
     ~complete:(fun _ ~part ->
@@ -59,12 +67,9 @@ let encode_value value = function
       | Config config -> Config.to_string config
       | Note note -> Note.to_string note )
   | Raw -> (
-    match value with
-    | Config config -> Config.to_string config
-    | Note note -> 
-        (In_channel.read_all (Note.get_path note))
-
-  )
+      match value with
+      | Config config -> Config.to_string config
+      | Note note -> In_channel.read_all (Note.get_path note) )
 
 (*
  * commands
@@ -265,12 +270,13 @@ note ls
       and fulltext =
         flag "fulltext" no_arg
           ~doc:"perform a fulltext search instead of just key comparison"
-      and simple =
-        flag "simple" no_arg ~doc:"simple program output (machine readable)"
+      and style =
+        flag "style"
+          (optional_with_default Note.Display.Fixed style_argument)
+          ~doc:"list style [fixed | wide | simple]"
       in
       fun () ->
         let open Note.Filter in
-        let style = if simple then Simple else Fixed in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
