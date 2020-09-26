@@ -24,13 +24,13 @@ end
 module Encoding = struct
   type t = Json | Yaml | Raw
 
-  let to_string = function Json -> "json" | Yaml -> "yaml" | Raw -> "simple"
+  let to_string = function Json -> "json" | Yaml -> "yaml" | Raw -> "raw"
 
   let of_string = function
     | "json" -> Json
     | "yaml" -> Yaml
     | "raw" -> Raw
-    | _ -> failwith "unsupported encoding type"
+    | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
 
 type t = Yaml.value
@@ -135,3 +135,4 @@ let load =
   | `No | `Unknown ->
       Unix.mkdir_p state_dir;
       cfg
+

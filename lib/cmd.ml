@@ -48,7 +48,8 @@ note cat -encoding json
           ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
-          (optional_with_default Encoding.Raw
+          (optional_with_default
+             (Encoding.of_string (value_as_string (get load Key.Encoding)))
              (Command.Arg_type.create Encoding.of_string))
           ~doc:"format [json | yaml | raw] (default: raw)"
       in
@@ -225,7 +226,8 @@ note ls
           ~doc:"perform a fulltext search instead of just key comparison"
       and style =
         flag "style"
-          (optional_with_default ListStyle.Fixed
+          (optional_with_default
+             (ListStyle.of_string (value_as_string (get load Key.ListStyle)))
              (Arg_type.create ListStyle.of_string))
           ~doc:"list style [fixed | wide | simple]"
       in
