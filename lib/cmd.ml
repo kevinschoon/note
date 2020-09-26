@@ -1,41 +1,12 @@
 open Core
-
-let init_config path =
-  let config_path =
-    match path with Some path -> path | None -> Config.default_path
-  in
-  let config = Config.read_config config_path in
-  Config.initialize config_path config;
-  config
+open Config
 
 let get_notes =
-  let open Config in
-  let cfg = init_config None in
-  let state_dir = get_exn cfg "state_dir" in
   List.map
     ~f:(fun slug ->
       let data = In_channel.read_all (Slug.get_path slug) in
       Note.of_string ~data slug)
-    (Slug.load state_dir)
-
-type encoding = Json | Yaml | Text | Raw
-
-let encoding_argument =
-  Command.Arg_type.create (fun encoding_str ->
-      match encoding_str with
-      | "Json" | "json" | "JSON" -> Json
-      | "Yaml" | "yaml" | "YAML" -> Yaml
-      | "Text" | "text" | "TEXT" -> Text
-      | "Raw" | "raw" | "RAW" -> Raw
-      | _ -> failwith "unsupported encoding type")
-
-let style_argument =
-  Command.Arg_type.create (fun encoding_str ->
-      match encoding_str with
-      | "Fixed" | "fixed" | "FIXED" -> Note.Display.Fixed
-      | "Wide" | "wide" | "WIDE" -> Note.Display.Wide
-      | "Simple" | "simple" | "SIMPLE" -> Note.Display.Simple
-      | _ -> failwith "unsupported style type")
+    (Slug.load (get_string load StateDir))
 
 let filter_arg =
   Command.Arg_type.create
@@ -49,27 +20,6 @@ let filter_arg =
           else None)
         notes)
     (fun filter -> filter)
-
-type value = Config of Config.t | Note of Note.t
-
-let encode_value value = function
-  (* TODO: move all of this into the note module *)
-  | Json -> (
-      match value with
-      | Config config -> Ezjsonm.to_string (Config.to_json config)
-      | Note note -> Ezjsonm.to_string (Note.to_json note) )
-  | Yaml -> (
-      match value with
-      | Config config -> Yaml.to_string_exn (Config.to_json config)
-      | Note note -> Yaml.to_string_exn (Note.to_json note) )
-  | Text -> (
-      match value with
-      | Config config -> Config.to_string config
-      | Note note -> Note.to_string note )
-  | Raw -> (
-      match value with
-      | Config config -> Config.to_string config
-      | Note note -> In_channel.read_all (Note.get_path note) )
 
 (*
  * commands
@@ -98,8 +48,9 @@ note cat -encoding json
           ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
-          (optional_with_default Raw encoding_argument)
-          ~doc:"format [Text | Json | Yaml | Raw] (default: Raw)"
+          (optional_with_default Encoding.Raw
+             (Command.Arg_type.create Encoding.of_string))
+          ~doc:"format [json | yaml | raw] (default: raw)"
       in
       fun () ->
         let open Note.Filter in
@@ -108,7 +59,12 @@ note cat -encoding json
           find_many ?strategy:filter_kind ~args:filter_args get_notes
         in
         List.iter
-          ~f:(fun note -> print_endline (encode_value (Note note) encoding))
+          ~f:(fun note ->
+            print_endline
+              ( match encoding with
+              | Json -> Ezjsonm.to_string (Note.to_json note)
+              | Yaml -> Yaml.to_string_exn (Note.to_json note)
+              | Raw -> In_channel.read_all (Note.get_path note) ))
           notes]
 
 let show_config =
@@ -127,18 +83,17 @@ note config
 note config -get state_dir
 |})
     [%map_open
-      let key = flag "get" (optional string) ~doc:"get a config value"
-      and encoding =
-        flag "encoding"
-          (optional_with_default Json encoding_argument)
-          ~doc:"encoding"
+      let key =
+        flag "get"
+          (optional (Command.Arg_type.create Key.of_string))
+          ~doc:"get a config value"
       in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
         match key with
-        | Some key -> print_string (get_exn cfg key)
-        | None -> print_endline (encode_value (Config cfg) encoding)]
+        | Some key ->
+            let value = get load key in
+            print_endline (value_as_string value)
+        | None -> print_endline (to_string load)]
 
 let create_note =
   let open Command.Let_syntax in
@@ -168,23 +123,23 @@ note ls "My Important Note"
       and title = anon ("title" %: string)
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
-        let slug = Slug.next (get_exn cfg "state_dir") in
+        let cfg = load in
+        let slug = Slug.next (get_string cfg Key.StateDir) in
         match open_stdin with
         | Some _ ->
             (* reading from stdin so write directly to note *)
             let content = In_channel.input_all In_channel.stdin in
             let note = Note.build ~tags ~content ~title slug in
             Io.create
-              ~callback:(get cfg "on_modification")
+              ~callback:(get_string_opt cfg Key.OnModification)
               ~content:(Note.to_string note) (Slug.get_path slug)
         | None ->
             let note = Note.build ~tags ~content:"" ~title slug in
             let init_content = Note.to_string note in
             Io.create_on_change
-              ~callback:(get cfg "on_modification")
-              ~editor:(get_exn cfg "editor") init_content (Slug.get_path slug)]
+              ~callback:(get_string_opt cfg Key.OnModification)
+              ~editor:(get_string cfg Key.Editor)
+              init_content (Slug.get_path slug)]
 
 let delete_note =
   let open Command.Let_syntax in
@@ -205,8 +160,6 @@ note delete fuubar
           ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
         let open Note.Filter in
         let filter_kind = if fulltext then Fulltext else Keys in
         let notes = get_notes in
@@ -216,7 +169,7 @@ note delete fuubar
         match note with
         | Some note ->
             Io.delete
-              ~callback:(get cfg "on_modification")
+              ~callback:(get_string_opt load Key.OnModification)
               ~title:(Note.get_title note) (Note.get_path note)
         | None -> failwith "not found"]
 
@@ -239,16 +192,16 @@ note edit fuubar
           ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
-        let open Config in
-        let cfg = init_config None in
+        let cfg = load in
         let open Note.Filter in
         let filter_kind = if fulltext then Fulltext else Keys in
         let note = find_one ~strategy:filter_kind ~args:filter_args get_notes in
         match note with
         | Some note ->
             Io.edit
-              ~callback:(get cfg "on_modification")
-              ~editor:(get_exn cfg "editor") (Note.get_path note)
+              ~callback:(get_string_opt cfg Key.OnModification)
+              ~editor:(get_string cfg Key.Editor)
+              (Note.get_path note)
         | None -> failwith "not found"]
 
 let list_notes =
@@ -272,7 +225,8 @@ note ls
           ~doc:"perform a fulltext search instead of just key comparison"
       and style =
         flag "style"
-          (optional_with_default Note.Display.Fixed style_argument)
+          (optional_with_default ListStyle.Fixed
+             (Arg_type.create ListStyle.of_string))
           ~doc:"list style [fixed | wide | simple]"
       in
       fun () ->
@@ -281,6 +235,12 @@ note ls
         let notes =
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
+        in
+        let style =
+          match style with
+          | ListStyle.Fixed -> `Fixed
+          | ListStyle.Wide -> `Wide
+          | ListStyle.Simple -> `Simple
         in
         print_short ~style notes]
 

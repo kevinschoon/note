@@ -1,128 +1,137 @@
 open Core
 
-type t = {
-  state_dir : string;
-  lock_file : string;
-  editor : string option;
-  on_modification : string option;
-}
+let home = Sys.home_directory ()
 
-let default_path =
-  Filename.concat (Sys.home_directory ()) ".config/note/config.yaml"
+let base_xdg_config_path = Filename.concat home ".config"
 
-let default_config =
-  let home_dir = Sys.home_directory () in
-  {
-    state_dir = Filename.concat home_dir ".local/share/note";
-    lock_file = Filename.concat home_dir ".local/share/note.lock";
-    editor = None;
-    on_modification = None;
-  }
+let base_xdg_share_path = Filename.concat home ".local/share"
 
-let to_json config = 
-  let editor =
-    match config.editor with
-    | Some value -> Ezjsonm.string value
-    | None -> Ezjsonm.unit ()
-  in
-  let on_mod =
-    match config.on_modification with
-    | Some value -> Ezjsonm.string value
-    | None -> Ezjsonm.unit ()
-  in
-    Ezjsonm.dict
-      [
-        ("state_dir", Ezjsonm.string config.state_dir);
-        ("lock_file", Ezjsonm.string config.lock_file);
-        ("editor", editor);
-        ("on_modification", on_mod);
-      ]
+module ListStyle = struct
+  type t = Fixed | Wide | Simple
 
-let to_string config =
-  let dict = to_json config in
-  Yaml.to_string_exn dict
+  let to_string = function
+    | Fixed -> "fixed"
+    | Wide -> "wide"
+    | Simple -> "simple"
 
-let of_string config_str =
-  let value = Yaml.of_string_exn config_str in
-  let state_dir = Ezjsonm.get_string (Ezjsonm.find value [ "state_dir" ]) in
-  let lock_file = Ezjsonm.get_string (Ezjsonm.find value [ "lock_file" ]) in
-  let string_or_none key =
-    match Ezjsonm.find_opt value [ key ] with
-    | Some v -> (
-        match v with
-        | `String v -> Some v
-        | `Null -> None
-        | _ ->
-            failwith
-              (sprintf "config entry %s must either be a string or NULL" key) )
-    | None -> None
-  in
-  let editor = string_or_none "editor" in
-  let on_modification = string_or_none "on_modification" in
-  { state_dir; lock_file; editor; on_modification }
+  let of_string = function
+    | "fixed" -> Fixed
+    | "wide" -> Wide
+    | "simple" -> Simple
+    | key -> failwith key
+end
 
+module Encoding = struct
+  type t = Json | Yaml | Raw
 
-let get config key =
+  let to_string = function Json -> "json" | Yaml -> "yaml" | Raw -> "simple"
+
+  let of_string = function
+    | "json" -> Json
+    | "yaml" -> Yaml
+    | "raw" -> Raw
+    | _ -> failwith "unsupported encoding type"
+end
+
+type t = Yaml.value
+
+type value =
+  | String of string option
+  | ListStyle of ListStyle.t option
+  | Encoding of Encoding.t option
+
+module Key = struct
+  type t =
+    | StateDir
+    | LockFile
+    | Editor
+    | OnModification
+    | ListStyle
+    | Encoding
+
+  let of_string = function
+    | "state_dir" -> StateDir
+    | "lock_file" -> LockFile
+    | "editor" -> Editor
+    | "on_modification" -> OnModification
+    | "list_style" -> ListStyle
+    | "encoding" -> Encoding
+    | key -> failwith (sprintf "bad configuration key %s" key) 
+
+  let to_string = function
+    | StateDir -> "state_dir"
+    | LockFile -> "lock_file"
+    | Editor -> "editor"
+    | OnModification -> "on_modification"
+    | ListStyle -> "list_style"
+    | Encoding -> "encoding"
+end
+
+let get_default = function
+  | Key.StateDir -> String (Some (Filename.concat base_xdg_share_path "/note"))
+  | Key.LockFile -> String (Some (Filename.concat base_xdg_share_path "/note"))
+  | Key.Editor -> String (Sys.getenv "EDITOR")
+  | Key.OnModification -> String None
+  | Key.ListStyle -> ListStyle (Some ListStyle.Fixed)
+  | Key.Encoding -> Encoding (Some Encoding.Raw)
+
+let of_json key json =
   match key with
-  | "state_dir" -> Some config.state_dir
-  | "lock_file" -> Some config.lock_file
-  | "editor" -> (
-      match config.editor with
-      | Some v -> Some v
-      | None -> (
-          match Sys.getenv "EDITOR" with
-          | Some v -> Some v
-          | None ->
-              failwith
-                "No editor is specified in your configuration and environment \
-                 variable $EDITOR is not set" ) )
-  | "on_modification" -> config.on_modification
-  | _ -> None
+  | Key.StateDir -> String (Some (Ezjsonm.get_string json))
+  | Key.LockFile -> String (Some (Ezjsonm.get_string json))
+  | Key.Editor -> String (Some (Ezjsonm.get_string json))
+  | Key.OnModification -> String (Some (Ezjsonm.get_string json))
+  | Key.ListStyle ->
+      ListStyle (Some (ListStyle.of_string (Ezjsonm.get_string json)))
+  | Key.Encoding ->
+      Encoding (Some (Encoding.of_string (Ezjsonm.get_string json)))
 
-let get_exn config key =
-  let result = get config key in
-  match result with
+let to_string t = Ezjsonm.to_string (Ezjsonm.wrap t)
+
+let get t key =
+  match Ezjsonm.find_opt t [ Key.to_string key ] with
+  | Some json -> of_json key json
+  | None -> get_default key
+
+let value_as_string value =
+  match value with
+  | String value -> ( match value with Some v -> v | None -> "" )
+  | ListStyle value -> (
+      match value with Some v -> ListStyle.to_string v | None -> "" )
+  | Encoding value -> (
+      match value with Some v -> Encoding.to_string v | None -> "" )
+
+let get_string_opt t key =
+  match get t key with
+  | String value -> value
+  | _ ->
+      failwith
+        (sprintf "BUG: you asked for a string but provided a %s"
+           (Key.to_string key))
+
+let get_string t key =
+  match get_string_opt t key with
   | Some value -> value
-  | None -> failwith (sprintf "bad configuration key: %s" key)
+  | None -> failwith (sprintf "%s not defined" (Key.to_string key))
 
-let initialize path config =
-  (* ensure the directory exists *)
-  ( match Sys.file_exists (Filename.dirname path) with
-  | `Yes -> ()
-  | `No | `Unknown -> () );
-  (* write config if that file does not exist *)
-  (let config_dir = Filename.concat (Sys.home_directory ()) ".config/note" in
-   match Sys.file_exists config_dir with
-   | `Yes -> ()
-   | `No | `Unknown -> Unix.mkdir_p config_dir);
-  (* write the config to disk if it does not already exist *)
-  ( match Sys.file_exists path with
-  | `Yes -> ()
-  | `No | `Unknown ->
-      let str_config = to_string config in
-      Out_channel.write_all ~data:str_config path );
-  (* create the state directory if it is missing *)
-  ( match Sys.file_exists config.state_dir with
-  | `Yes -> ()
-  | `No | `Unknown -> Unix.mkdir_p config.state_dir );
-  ()
-
-let resolve config =
-  let editor =
-    match config.editor with
-    | Some name -> Some name
-    | None -> Sys.getenv "NOTE_EDITOR"
+let load =
+  let path =
+    match Sys.getenv "NOTE_CONFIG" with
+    | Some path -> path
+    | None -> Filename.concat base_xdg_config_path "/note/config.yaml"
   in
-  {
-    editor;
-    state_dir = config.state_dir;
-    lock_file = config.lock_file;
-    on_modification = config.on_modification;
-  }
+  let cfg =
+    match Sys.file_exists path with
+    | `Yes -> Yaml.of_string_exn (In_channel.read_all path)
+    | `No | `Unknown ->
+        Unix.mkdir_p (Filename.dirname path);
+        Out_channel.write_all path ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
+        Yaml.of_string_exn (In_channel.read_all path)
+  in
 
-let read_config path =
-  match Sys.file_exists path with
-  | `Yes ->
-      let config_str = In_channel.read_all path in
-      resolve (of_string config_str)
-  | `No | `Unknown -> resolve default_config
+  let state_dir = get_string cfg Key.StateDir in
+  match Sys.file_exists state_dir with
+  | `Yes -> cfg
+  | `No | `Unknown ->
+      Unix.mkdir_p state_dir;
+      cfg

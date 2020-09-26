@@ -57,11 +57,9 @@ module Filter : sig
 end
 
 module Display : sig
-  type style = Fixed | Wide | Simple
-
   type cell = string * ANSITerminal.style list
 
   type row = cell list
 
-  val print_short : style:style -> t list -> unit
+  val print_short : style:[<`Fixed | `Simple | `Wide] -> t list -> unit
 end

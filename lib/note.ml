@@ -201,8 +201,6 @@ module Display = struct
 
   open ANSITerminal
 
-  type style = Fixed | Wide | Simple
-
   type cell = string * ANSITerminal.style list
 
   type row = cell list
@@ -267,12 +265,13 @@ module Display = struct
   let print_short ~style notes =
     let cells = to_cells notes in
     match style with
-    | Simple ->
+    | `Simple ->
         List.iter
           ~f:(fun cell -> print_endline (fst (List.nth_exn cell 0)))
           cells
-    | Fixed -> List.iter ~f:print_endline (apply (fixed_spacing cells) cells)
-    | Wide ->
+    | `Fixed ->
+        List.iter ~f:print_endline (apply (fixed_spacing cells) cells)
+    | `Wide ->
         List.iter ~f:print_endline
           (apply (fix_right (fixed_spacing cells)) cells)
 end
