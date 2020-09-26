@@ -94,7 +94,7 @@ note config -get state_dir
         | Some key ->
             let value = get load key in
             print_endline (value_as_string value)
-        | None -> print_endline (to_string load)]
+        | None -> print_string (to_string load)]
 
 let create_note =
   let open Command.Let_syntax in

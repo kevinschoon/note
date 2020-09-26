@@ -86,7 +86,7 @@ let of_json key json =
   | Key.Encoding ->
       Encoding (Some (Encoding.of_string (Ezjsonm.get_string json)))
 
-let to_string t = Ezjsonm.to_string (Ezjsonm.wrap t)
+let to_string t = Yaml.to_string_exn t
 
 let get t key =
   match Ezjsonm.find_opt t [ Key.to_string key ] with
