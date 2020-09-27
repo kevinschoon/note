@@ -72,9 +72,9 @@ note cat -encoding json
           ~f:(fun note ->
             print_endline
               ( match encoding with
-              | Json -> Ezjsonm.to_string (Note.to_json note)
-              | Yaml -> Yaml.to_string_exn (Note.to_json note)
-              | Raw -> In_channel.read_all (Note.get_path note) ))
+              | Json -> Note.Encoding.to_string ~style:`Json note
+              | Yaml -> Note.Encoding.to_string ~style: `Yaml note
+              | Raw -> Note.Encoding.to_string ~style: `Raw note ))
           notes]
 
 let config_show =

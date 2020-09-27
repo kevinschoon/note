@@ -6,39 +6,8 @@ val build : ?tags:string list -> ?content:string -> title:string -> Slug.t -> t
 val get_title : t -> string
 (** access the title of a note *)
 
-val get_tags : t -> string list
-(** access tags in the frontmatter of a note *)
-
 val get_path : t -> string
 (** access the absolute path of a note *)
-
-val tokenize : t -> string list
-(** split each word from the note into a list of string tokens *)
-
-val get_data : t -> Ezjsonm.t
-(** Extract arbitrarily nested data in the note's markdown document. 
-    Currently this will only support code blocks of json or ymal but it may
-    be expanded. For example a markdown document such as:
-
-    # Title
-    foo bar
-
-    ## Code Examples
-
-    ```json
-    {"fuu": [{"bar": ["baz", "qux"]}]}
-    ```
-    ```yaml
-    hello: world
-    ```
-
-    will return an Ezjsonm.value list in the order they are declared, e.g.
-
-    [
-        {"fuu": [{"bar": ["baz", "qux"]}]},
-        {"hello": "world"},
-    ]
- *)
 
 val to_string : t -> string
 (** convert a note into a string *)
@@ -46,7 +15,9 @@ val to_string : t -> string
 val of_string : data:string -> Slug.t -> t
 (** decode a note from a string *)
 
-val to_json : t -> [> Ezjsonm.t ]
+module Encoding : sig
+  val to_string : style:[< `Raw | `Json | `Yaml ] -> t -> string
+end
 
 module Filter : sig
   type strategy = Keys | Fulltext
@@ -61,5 +32,5 @@ module Display : sig
 
   type row = cell list
 
-  val to_stdout : style:[<`Fixed | `Simple | `Wide] -> t list -> unit
+  val to_stdout : style:[< `Fixed | `Simple | `Wide ] -> t list -> unit
 end

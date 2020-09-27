@@ -159,6 +159,14 @@ let of_string ~data slug =
     let markdown = Omd.of_string data in
     { frontmatter; markdown; slug }
 
+module Encoding = struct
+  let to_string ~style t =
+    match style with
+    | `Raw -> In_channel.read_all (get_path t)
+    | `Json -> Ezjsonm.to_string (to_json t)
+    | `Yaml -> Yaml.to_string_exn (to_json t)
+end
+
 module Filter = struct
   type strategy = Keys | Fulltext
 
@@ -269,8 +277,7 @@ module Display = struct
         List.iter
           ~f:(fun cell -> print_endline (fst (List.nth_exn cell 0)))
           cells
-    | `Fixed ->
-        List.iter ~f:print_endline (apply (fixed_spacing cells) cells)
+    | `Fixed -> List.iter ~f:print_endline (apply (fixed_spacing cells) cells)
     | `Wide ->
         List.iter ~f:print_endline
           (apply (fix_right (fixed_spacing cells)) cells)
