@@ -79,7 +79,7 @@ note cat -encoding json
 
 let config_show =
   Command.basic ~summary:"show the current configuration"
-    (Command.Param.return (fun () -> print_endline (to_string load)))
+    (Command.Param.return (fun () -> print_string (to_string load)))
 
 let config_get =
   let open Command.Let_syntax in
