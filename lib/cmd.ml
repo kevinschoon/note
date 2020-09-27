@@ -247,7 +247,7 @@ note ls
           | ListStyle.Wide -> `Wide
           | ListStyle.Simple -> `Simple
         in
-        print_short ~style notes]
+        to_stdout ~style notes]
 
 let run =
   Command.run ~version:"%%VERSION%%"

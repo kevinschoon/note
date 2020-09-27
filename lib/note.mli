@@ -61,5 +61,5 @@ module Display : sig
 
   type row = cell list
 
-  val print_short : style:[<`Fixed | `Simple | `Wide] -> t list -> unit
+  val to_stdout : style:[<`Fixed | `Simple | `Wide] -> t list -> unit
 end

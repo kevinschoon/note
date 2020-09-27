@@ -262,7 +262,7 @@ module Display = struct
           ])
       cells
 
-  let print_short ~style notes =
+  let to_stdout ~style notes =
     let cells = to_cells notes in
     match style with
     | `Simple ->
