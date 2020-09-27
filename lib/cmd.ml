@@ -73,8 +73,8 @@ note cat -encoding json
             print_endline
               ( match encoding with
               | Json -> Note.Encoding.to_string ~style:`Json note
-              | Yaml -> Note.Encoding.to_string ~style: `Yaml note
-              | Raw -> Note.Encoding.to_string ~style: `Raw note ))
+              | Yaml -> Note.Encoding.to_string ~style:`Yaml note
+              | Raw -> Note.Encoding.to_string ~style:`Raw note ))
           notes]
 
 let config_show =
@@ -93,11 +93,10 @@ let config_set =
   Command.basic ~summary:"set a config value"
     [%map_open
       let key = anon ("key" %: key_arg) and value = anon ("value" %: string) in
-      fun () -> 
+      fun () ->
         let cfg = load in
         let cfg = set cfg key (value_of_string key value) in
-        save cfg
-      ]
+        save cfg]
 
 let create_note =
   let open Command.Let_syntax in
@@ -241,13 +240,10 @@ note ls
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        let style =
-          match style with
-          | ListStyle.Fixed -> `Fixed
-          | ListStyle.Wide -> `Wide
-          | ListStyle.Simple -> `Simple
-        in
-        to_stdout ~style notes]
+        match style with
+        | ListStyle.Fixed -> to_stdout ~style:`Fixed notes
+        | ListStyle.Wide -> to_stdout ~style:`Wide notes
+        | ListStyle.Simple -> to_stdout ~style:`Simple notes]
 
 let run =
   Command.run ~version:"%%VERSION%%"
