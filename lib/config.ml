@@ -6,6 +6,11 @@ let base_xdg_config_path = Filename.concat home ".config"
 
 let base_xdg_share_path = Filename.concat home ".local/share"
 
+let config_path =
+  match Sys.getenv "NOTE_CONFIG" with
+  | Some path -> path
+  | None -> Filename.concat base_xdg_config_path "/note/config.yaml"
+
 module ListStyle = struct
   type t = Fixed | Wide | Simple
 
@@ -33,13 +38,6 @@ module Encoding = struct
     | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
 
-type t = Yaml.value
-
-type value =
-  | String of string option
-  | ListStyle of ListStyle.t option
-  | Encoding of Encoding.t option
-
 module Key = struct
   type t =
     | StateDir
@@ -49,6 +47,8 @@ module Key = struct
     | ListStyle
     | Encoding
 
+  let all = [ StateDir; LockFile; Editor; OnModification; ListStyle; Encoding ]
+
   let of_string = function
     | "state_dir" -> StateDir
     | "lock_file" -> LockFile
@@ -56,7 +56,7 @@ module Key = struct
     | "on_modification" -> OnModification
     | "list_style" -> ListStyle
     | "encoding" -> Encoding
-    | key -> failwith (sprintf "bad configuration key %s" key) 
+    | key -> failwith (sprintf "bad configuration key %s" key)
 
   let to_string = function
     | StateDir -> "state_dir"
@@ -65,7 +65,17 @@ module Key = struct
     | OnModification -> "on_modification"
     | ListStyle -> "list_style"
     | Encoding -> "encoding"
+
 end
+
+type t = Yaml.value
+
+let to_string t = Yaml.to_string_exn t
+
+type value =
+  | String of string option
+  | ListStyle of ListStyle.t option
+  | Encoding of Encoding.t option
 
 let get_default = function
   | Key.StateDir -> String (Some (Filename.concat base_xdg_share_path "/note"))
@@ -75,31 +85,31 @@ let get_default = function
   | Key.ListStyle -> ListStyle (Some ListStyle.Fixed)
   | Key.Encoding -> Encoding (Some Encoding.Raw)
 
-let of_json key json =
+let value_of_string key s =
   match key with
-  | Key.StateDir -> String (Some (Ezjsonm.get_string json))
-  | Key.LockFile -> String (Some (Ezjsonm.get_string json))
-  | Key.Editor -> String (Some (Ezjsonm.get_string json))
-  | Key.OnModification -> String (Some (Ezjsonm.get_string json))
-  | Key.ListStyle ->
-      ListStyle (Some (ListStyle.of_string (Ezjsonm.get_string json)))
-  | Key.Encoding ->
-      Encoding (Some (Encoding.of_string (Ezjsonm.get_string json)))
+  | Key.StateDir -> String (Some s)
+  | Key.LockFile -> String (Some s)
+  | Key.Editor -> String (Some s)
+  | Key.OnModification -> String (Some s)
+  | Key.ListStyle -> ListStyle (Some (ListStyle.of_string s))
+  | Key.Encoding -> Encoding (Some (Encoding.of_string s))
 
-let to_string t = Yaml.to_string_exn t
-
-let get t key =
-  match Ezjsonm.find_opt t [ Key.to_string key ] with
-  | Some json -> of_json key json
-  | None -> get_default key
-
-let value_as_string value =
+let value_to_string value =
   match value with
   | String value -> ( match value with Some v -> v | None -> "" )
   | ListStyle value -> (
       match value with Some v -> ListStyle.to_string v | None -> "" )
   | Encoding value -> (
       match value with Some v -> Encoding.to_string v | None -> "" )
+
+let get t key =
+  match Ezjsonm.find_opt t [ Key.to_string key ] with
+  | Some json -> value_of_string key (Ezjsonm.get_string json)
+  | None -> get_default key
+
+let set t key value =
+  Ezjsonm.update t [ Key.to_string key ]
+    (Some (Ezjsonm.string (value_to_string value)))
 
 let get_string_opt t key =
   match get t key with
@@ -115,18 +125,14 @@ let get_string t key =
   | None -> failwith (sprintf "%s not defined" (Key.to_string key))
 
 let load =
-  let path =
-    match Sys.getenv "NOTE_CONFIG" with
-    | Some path -> path
-    | None -> Filename.concat base_xdg_config_path "/note/config.yaml"
-  in
   let cfg =
-    match Sys.file_exists path with
-    | `Yes -> Yaml.of_string_exn (In_channel.read_all path)
+    match Sys.file_exists config_path with
+    | `Yes -> Yaml.of_string_exn (In_channel.read_all config_path)
     | `No | `Unknown ->
-        Unix.mkdir_p (Filename.dirname path);
-        Out_channel.write_all path ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
-        Yaml.of_string_exn (In_channel.read_all path)
+        Unix.mkdir_p (Filename.dirname config_path);
+        Out_channel.write_all config_path
+          ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
+        Yaml.of_string_exn (In_channel.read_all config_path)
   in
 
   let state_dir = get_string cfg Key.StateDir in
@@ -136,3 +142,4 @@ let load =
       Unix.mkdir_p state_dir;
       cfg
 
+let save t = Out_channel.write_all ~data:(to_string t) config_path

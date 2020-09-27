@@ -21,6 +21,15 @@ let filter_arg =
         notes)
     (fun filter -> filter)
 
+let key_arg =
+  Command.Arg_type.create
+    ~complete:(fun _ ~part ->
+      let string_keys = List.map ~f:Key.to_string Key.all in
+      List.filter
+        ~f:(fun key -> String.is_substring ~substring:part key)
+        string_keys)
+    Key.of_string
+
 (*
  * commands
  *)
@@ -49,7 +58,7 @@ note cat -encoding json
       and encoding =
         flag "encoding"
           (optional_with_default
-             (Encoding.of_string (value_as_string (get load Key.Encoding)))
+             (Encoding.of_string (value_to_string (get load Key.Encoding)))
              (Command.Arg_type.create Encoding.of_string))
           ~doc:"format [json | yaml | raw] (default: raw)"
       in
@@ -68,33 +77,27 @@ note cat -encoding json
               | Raw -> In_channel.read_all (Note.get_path note) ))
           notes]
 
-let show_config =
+let config_show =
+  Command.basic ~summary:"show the current configuration"
+    (Command.Param.return (fun () -> print_endline (to_string load)))
+
+let config_get =
   let open Command.Let_syntax in
-  Command.basic ~summary:"display the configuration"
-    ~readme:(fun () ->
-      {| 
-Display the current configuration as inferred by Note. It is also possible to 
-extract specific values by specifying a key value.
-
-Examples
-
-# display the current configuration
-note config
-# extract a specific value from the configuration
-note config -get state_dir
-|})
+  Command.basic ~summary:"get a config value"
     [%map_open
-      let key =
-        flag "get"
-          (optional (Command.Arg_type.create Key.of_string))
-          ~doc:"get a config value"
-      in
-      fun () ->
-        match key with
-        | Some key ->
-            let value = get load key in
-            print_endline (value_as_string value)
-        | None -> print_string (to_string load)]
+      let key = anon ("key" %: key_arg) in
+      fun () -> print_endline (value_to_string (get load key))]
+
+let config_set =
+  let open Command.Let_syntax in
+  Command.basic ~summary:"set a config value"
+    [%map_open
+      let key = anon ("key" %: key_arg) and value = anon ("value" %: string) in
+      fun () -> 
+        let cfg = load in
+        let cfg = set cfg key (value_of_string key value) in
+        save cfg
+      ]
 
 let create_note =
   let open Command.Let_syntax in
@@ -227,7 +230,7 @@ note ls
       and style =
         flag "style"
           (optional_with_default
-             (ListStyle.of_string (value_as_string (get load Key.ListStyle)))
+             (ListStyle.of_string (value_to_string (get load Key.ListStyle)))
              (Arg_type.create ListStyle.of_string))
           ~doc:"list style [fixed | wide | simple]"
       in
@@ -252,7 +255,10 @@ let run =
        [
          ("cat", cat_note);
          ("create", create_note);
-         ("config", show_config);
+         ( "config",
+           Command.group ~summary:"config management"
+             [ ("show", config_show); ("get", config_get); ("set", config_set) ]
+         );
          ("delete", delete_note);
          ("edit", edit_note);
          ("ls", list_notes);

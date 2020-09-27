@@ -5,7 +5,7 @@
 # script assumes that your state_dir is also a git repository.
 set -e
 
-STATE_DIR="$(note config -get state_dir)"
+STATE_DIR="$(note config get state_dir)"
 
 pushd "$STATE_DIR"
 git add --all

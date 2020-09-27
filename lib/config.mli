@@ -25,6 +25,8 @@ module Key : sig
     | ListStyle
     | Encoding
 
+  val all : t list
+
   val of_string : string -> t
 
   val to_string : t -> string
@@ -42,11 +44,19 @@ val to_string : t -> string
 val load : t
 (** load the configuration from disk *)
 
-val value_as_string : value -> string
+val save : t -> unit
+(** save the configuration to disk *)
+
+val value_to_string : value -> string
 (** convert a value to string form *)
+
+val value_of_string : Key.t -> string -> value
 
 val get : t -> Key.t -> value
 (** get a single value by key *)
+
+val set : t -> Key.t -> value -> t
+(** set a configuration value *)
 
 val get_string : t -> Key.t -> string
 (** get a single value as a string by key *)
