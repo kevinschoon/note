@@ -6,7 +6,7 @@ let get_notes =
     ~f:(fun slug ->
       let data = In_channel.read_all (Slug.get_path slug) in
       Note.of_string ~data slug)
-    (Slug.load (get_string load StateDir))
+    (Slug.load (get_string load `StateDir))
 
 let filter_arg =
   Command.Arg_type.create
@@ -58,7 +58,7 @@ note cat -encoding json
       and encoding =
         flag "encoding"
           (optional_with_default
-             (Encoding.of_string (value_to_string (get load Key.Encoding)))
+             (Encoding.of_string (value_to_string (get load `Encoding)))
              (Command.Arg_type.create Encoding.of_string))
           ~doc:"format [json | yaml | raw] (default: raw)"
       in
@@ -70,11 +70,7 @@ note cat -encoding json
         in
         List.iter
           ~f:(fun note ->
-            print_endline
-              ( match encoding with
-              | Json -> Note.Encoding.to_string ~style:`Json note
-              | Yaml -> Note.Encoding.to_string ~style:`Yaml note
-              | Raw -> Note.Encoding.to_string ~style:`Raw note ))
+            print_endline (Note.Encoding.to_string ~style:encoding note))
           notes]
 
 let config_show =
@@ -127,21 +123,21 @@ note ls "My Important Note"
       and tags = anon (sequence ("tag" %: string)) in
       fun () ->
         let cfg = load in
-        let slug = Slug.next (get_string cfg Key.StateDir) in
+        let slug = Slug.next (get_string cfg `StateDir) in
         match open_stdin with
         | Some _ ->
             (* reading from stdin so write directly to note *)
             let content = In_channel.input_all In_channel.stdin in
             let note = Note.build ~tags ~content ~title slug in
             Io.create
-              ~callback:(get_string_opt cfg Key.OnModification)
+              ~callback:(get_string_opt cfg `OnModification)
               ~content:(Note.to_string note) (Slug.get_path slug)
         | None ->
             let note = Note.build ~tags ~content:"" ~title slug in
             let init_content = Note.to_string note in
             Io.create_on_change
-              ~callback:(get_string_opt cfg Key.OnModification)
-              ~editor:(get_string cfg Key.Editor)
+              ~callback:(get_string_opt cfg `OnModification)
+              ~editor:(get_string cfg `Editor)
               init_content (Slug.get_path slug)]
 
 let delete_note =
@@ -172,7 +168,7 @@ note delete fuubar
         match note with
         | Some note ->
             Io.delete
-              ~callback:(get_string_opt load Key.OnModification)
+              ~callback:(get_string_opt load `OnModification)
               ~title:(Note.get_title note) (Note.get_path note)
         | None -> failwith "not found"]
 
@@ -202,8 +198,8 @@ note edit fuubar
         match note with
         | Some note ->
             Io.edit
-              ~callback:(get_string_opt cfg Key.OnModification)
-              ~editor:(get_string cfg Key.Editor)
+              ~callback:(get_string_opt cfg `OnModification)
+              ~editor:(get_string cfg `Editor)
               (Note.get_path note)
         | None -> failwith "not found"]
 
@@ -229,7 +225,7 @@ note ls
       and style =
         flag "style"
           (optional_with_default
-             (ListStyle.of_string (value_to_string (get load Key.ListStyle)))
+             (ListStyle.of_string (value_to_string (get load `ListStyle)))
              (Arg_type.create ListStyle.of_string))
           ~doc:"list style [fixed | wide | simple]"
       in
@@ -240,10 +236,7 @@ note ls
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        match style with
-        | ListStyle.Fixed -> to_stdout ~style:`Fixed notes
-        | ListStyle.Wide -> to_stdout ~style:`Wide notes
-        | ListStyle.Simple -> to_stdout ~style:`Simple notes]
+        to_stdout ~style notes]
 
 let run =
   Command.run ~version:"%%VERSION%%"

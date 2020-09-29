@@ -12,60 +12,60 @@ let config_path =
   | None -> Filename.concat base_xdg_config_path "/note/config.yaml"
 
 module ListStyle = struct
-  type t = Fixed | Wide | Simple
+  type t = [ `Fixed | `Wide | `Simple ]
 
   let to_string = function
-    | Fixed -> "fixed"
-    | Wide -> "wide"
-    | Simple -> "simple"
+    | `Fixed -> "fixed"
+    | `Wide -> "wide"
+    | `Simple -> "simple"
 
   let of_string = function
-    | "fixed" -> Fixed
-    | "wide" -> Wide
-    | "simple" -> Simple
+    | "fixed" -> `Fixed
+    | "wide" -> `Wide
+    | "simple" -> `Simple
     | key -> failwith key
 end
 
 module Encoding = struct
-  type t = Json | Yaml | Raw
+  type t = [ `Json | `Yaml | `Raw ]
 
-  let to_string = function Json -> "json" | Yaml -> "yaml" | Raw -> "raw"
+  let to_string = function `Json -> "json" | `Yaml -> "yaml" | `Raw -> "raw"
 
   let of_string = function
-    | "json" -> Json
-    | "yaml" -> Yaml
-    | "raw" -> Raw
+    | "json" -> `Json
+    | "yaml" -> `Yaml
+    | "raw" -> `Raw
     | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
 
 module Key = struct
   type t =
-    | StateDir
-    | LockFile
-    | Editor
-    | OnModification
-    | ListStyle
-    | Encoding
+    [ `StateDir
+    | `LockFile
+    | `Editor
+    | `OnModification
+    | `ListStyle
+    | `Encoding ]
 
-  let all = [ StateDir; LockFile; Editor; OnModification; ListStyle; Encoding ]
+  let all =
+    [ `StateDir; `LockFile; `Editor; `OnModification; `ListStyle; `Encoding ]
 
   let of_string = function
-    | "state_dir" -> StateDir
-    | "lock_file" -> LockFile
-    | "editor" -> Editor
-    | "on_modification" -> OnModification
-    | "list_style" -> ListStyle
-    | "encoding" -> Encoding
+    | "state_dir" -> `StateDir
+    | "lock_file" -> `LockFile
+    | "editor" -> `Editor
+    | "on_modification" -> `OnModification
+    | "list_style" -> `ListStyle
+    | "encoding" -> `Encoding
     | key -> failwith (sprintf "bad configuration key %s" key)
 
   let to_string = function
-    | StateDir -> "state_dir"
-    | LockFile -> "lock_file"
-    | Editor -> "editor"
-    | OnModification -> "on_modification"
-    | ListStyle -> "list_style"
-    | Encoding -> "encoding"
-
+    | `StateDir -> "state_dir"
+    | `LockFile -> "lock_file"
+    | `Editor -> "editor"
+    | `OnModification -> "on_modification"
+    | `ListStyle -> "list_style"
+    | `Encoding -> "encoding"
 end
 
 type t = Yaml.value
@@ -78,21 +78,21 @@ type value =
   | Encoding of Encoding.t option
 
 let get_default = function
-  | Key.StateDir -> String (Some (Filename.concat base_xdg_share_path "/note"))
-  | Key.LockFile -> String (Some (Filename.concat base_xdg_share_path "/note"))
-  | Key.Editor -> String (Sys.getenv "EDITOR")
-  | Key.OnModification -> String None
-  | Key.ListStyle -> ListStyle (Some ListStyle.Fixed)
-  | Key.Encoding -> Encoding (Some Encoding.Raw)
+  | `StateDir -> String (Some (Filename.concat base_xdg_share_path "/note"))
+  | `LockFile -> String (Some (Filename.concat base_xdg_share_path "/note"))
+  | `Editor -> String (Sys.getenv "EDITOR")
+  | `OnModification -> String None
+  | `ListStyle -> ListStyle (Some `Fixed)
+  | `Encoding -> Encoding (Some `Raw)
 
 let value_of_string key s =
   match key with
-  | Key.StateDir -> String (Some s)
-  | Key.LockFile -> String (Some s)
-  | Key.Editor -> String (Some s)
-  | Key.OnModification -> String (Some s)
-  | Key.ListStyle -> ListStyle (Some (ListStyle.of_string s))
-  | Key.Encoding -> Encoding (Some (Encoding.of_string s))
+  | `StateDir -> String (Some s)
+  | `LockFile -> String (Some s)
+  | `Editor -> String (Some s)
+  | `OnModification -> String (Some s)
+  | `ListStyle -> ListStyle (Some (ListStyle.of_string s))
+  | `Encoding -> Encoding (Some (Encoding.of_string s))
 
 let value_to_string value =
   match value with
@@ -135,7 +135,7 @@ let load =
         Yaml.of_string_exn (In_channel.read_all config_path)
   in
 
-  let state_dir = get_string cfg Key.StateDir in
+  let state_dir = get_string cfg `StateDir in
   match Sys.file_exists state_dir with
   | `Yes -> cfg
   | `No | `Unknown ->
