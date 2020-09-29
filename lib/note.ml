@@ -45,56 +45,6 @@ let get_tags t =
 
 let get_path t = Slug.get_path t.slug
 
-let tokenize t =
-  let rec _tokenize markdown =
-    List.fold
-      ~init:([] : string list)
-      ~f:(fun accm entry ->
-        match entry with
-        | Omd.Text text -> accm @ String.split_on_chars ~on:[ ' ' ] text
-        | Omd.H1 header -> accm @ _tokenize header
-        | Omd.H2 header -> accm @ _tokenize header
-        | Omd.H3 header -> accm @ _tokenize header
-        | Omd.H4 header -> accm @ _tokenize header
-        | Omd.H5 header -> accm @ _tokenize header
-        | Omd.H6 header -> accm @ _tokenize header
-        | Omd.Paragraph paragraph -> accm @ _tokenize paragraph
-        | Omd.Emph text -> accm @ _tokenize text
-        | Omd.Bold text -> accm @ _tokenize text
-        | Omd.Ul markdown_list ->
-            let inner =
-              List.fold ~init:[]
-                ~f:(fun accm entry -> accm @ _tokenize entry)
-                markdown_list
-            in
-            accm @ inner
-        | Omd.Ol markdown_list ->
-            let inner =
-              List.fold ~init:[]
-                ~f:(fun accm entry -> accm @ _tokenize entry)
-                markdown_list
-            in
-            accm @ inner
-        | Omd.Ulp markdown_list ->
-            let inner =
-              List.fold ~init:[]
-                ~f:(fun accm entry -> accm @ _tokenize entry)
-                markdown_list
-            in
-            accm @ inner
-        | Omd.Olp markdown_list ->
-            let inner =
-              List.fold ~init:[]
-                ~f:(fun accm entry -> accm @ _tokenize entry)
-                markdown_list
-            in
-            accm @ inner
-        | _ -> accm)
-      markdown
-  in
-
-  _tokenize t.markdown
-
 let get_data t =
   let data =
     List.filter_map
@@ -158,6 +108,43 @@ let of_string ~data slug =
     let frontmatter = None in
     let markdown = Omd.of_string data in
     { frontmatter; markdown; slug }
+
+module Util = struct
+  let split_words str =
+    List.filter_map
+      ~f:(fun x ->
+        match String.strip ~drop:(fun x -> Char.equal x ' ') x with
+        | "" -> None
+        | _ -> Some x)
+      (String.split ~on:' ' str)
+
+  let rec to_words markdown =
+    match markdown with
+    | [] -> []
+    | hd :: tl ->
+        ( match hd with
+        | Omd.Text s -> split_words s
+        | Omd.H1 v
+        | Omd.H2 v
+        | Omd.H3 v
+        | Omd.H4 v
+        | Omd.H5 v
+        | Omd.H6 v
+        | Omd.Blockquote v
+        | Omd.Bold v
+        | Omd.Emph v
+        | Omd.Paragraph v ->
+            to_words v
+        | Omd.Url (_, inner, title) -> split_words title @ to_words inner
+        | Omd.Ref (_, _, title, _) -> split_words title
+        | Omd.Ol l | Omd.Olp l | Omd.Ul l | Omd.Ulp l ->
+            List.fold
+              ~init:([] : string list)
+              ~f:(fun accm elem -> accm @ to_words elem)
+              l
+        | _ -> [] )
+        @ to_words tl
+end
 
 module Encoding = struct
   let to_string ~style t =
@@ -227,7 +214,8 @@ module Display = struct
           let title = (get_title note, [ Reset ]) in
           let tags = (String.concat ~sep:"|" (get_tags note), [ Reset ]) in
           let word_count =
-            (Core.sprintf "%d" (List.length (tokenize note)), [ Reset ])
+            ( Core.sprintf "%d" (List.length (Util.to_words note.markdown)),
+              [ Reset ] )
           in
           let slug = (Slug.to_string note.slug, [ Reset ]) in
           accm @ [ [ title; tags; word_count; slug ] ])
