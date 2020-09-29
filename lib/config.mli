@@ -1,7 +1,7 @@
 open Base
 
 module ListStyle : sig
-  type t = [`Fixed | `Wide | `Simple]
+  type t = [ `Fixed | `Wide | `Simple ]
 
   val of_string : string -> t
 
@@ -9,7 +9,15 @@ module ListStyle : sig
 end
 
 module Encoding : sig
-  type t = [`Json | `Yaml | `Raw]
+  type t = [ `Json | `Yaml | `Raw ]
+
+  val of_string : string -> t
+
+  val to_string : t -> string
+end
+
+module Column : sig
+  type t = [ `Title | `Tags | `WordCount | `Slug ]
 
   val of_string : string -> t
 
@@ -17,13 +25,14 @@ module Encoding : sig
 end
 
 module Key : sig
-  type t = [
-    | `StateDir
+  type t =
+    [ `StateDir
     | `LockFile
     | `Editor
     | `OnModification
     | `ListStyle
-    | `Encoding ]
+    | `Encoding
+    | `ColumnList ]
 
   val all : t list
 
@@ -63,4 +72,3 @@ val get_string : t -> Key.t -> string
 
 val get_string_opt : t -> Key.t -> string option
 (** get a string option by key *)
-

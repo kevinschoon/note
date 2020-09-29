@@ -38,6 +38,27 @@ module Encoding = struct
     | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
 
+module Column = struct
+  type t = [ `Title | `Tags | `WordCount | `Slug ]
+
+  let to_string = function
+    | `Title -> "title"
+    | `Tags -> "tags"
+    | `WordCount -> "words"
+    | `Slug -> "slug"
+
+  let of_string = function
+    | "title" -> `Title
+    | "tags" -> `Tags
+    | "words" -> `WordCount
+    | "slug" -> `Slug
+    | key -> failwith (sprintf "unsupported column type: %s" key)
+
+  let to_string_list t = String.concat ~sep:"," (List.map ~f:to_string t)
+
+  let of_string_list str = List.map ~f:of_string (String.split ~on:',' str)
+end
+
 module Key = struct
   type t =
     [ `StateDir
@@ -45,10 +66,19 @@ module Key = struct
     | `Editor
     | `OnModification
     | `ListStyle
-    | `Encoding ]
+    | `Encoding
+    | `ColumnList ]
 
   let all =
-    [ `StateDir; `LockFile; `Editor; `OnModification; `ListStyle; `Encoding ]
+    [
+      `StateDir;
+      `LockFile;
+      `Editor;
+      `OnModification;
+      `ListStyle;
+      `Encoding;
+      `ColumnList;
+    ]
 
   let of_string = function
     | "state_dir" -> `StateDir
@@ -57,6 +87,7 @@ module Key = struct
     | "on_modification" -> `OnModification
     | "list_style" -> `ListStyle
     | "encoding" -> `Encoding
+    | "column_list" -> `ColumnList
     | key -> failwith (sprintf "bad configuration key %s" key)
 
   let to_string = function
@@ -66,6 +97,7 @@ module Key = struct
     | `OnModification -> "on_modification"
     | `ListStyle -> "list_style"
     | `Encoding -> "encoding"
+    | `ColumnList -> "column_list"
 end
 
 type t = Yaml.value
@@ -76,6 +108,7 @@ type value =
   | String of string option
   | ListStyle of ListStyle.t option
   | Encoding of Encoding.t option
+  | ColumnList of Column.t list option
 
 let get_default = function
   | `StateDir -> String (Some (Filename.concat base_xdg_share_path "/note"))
@@ -84,6 +117,7 @@ let get_default = function
   | `OnModification -> String None
   | `ListStyle -> ListStyle (Some `Fixed)
   | `Encoding -> Encoding (Some `Raw)
+  | `ColumnList -> ColumnList (Some [ `Title; `Tags; `WordCount; `Slug ])
 
 let value_of_string key s =
   match key with
@@ -93,6 +127,7 @@ let value_of_string key s =
   | `OnModification -> String (Some s)
   | `ListStyle -> ListStyle (Some (ListStyle.of_string s))
   | `Encoding -> Encoding (Some (Encoding.of_string s))
+  | `ColumnList -> ColumnList (Some (Column.of_string_list s))
 
 let value_to_string value =
   match value with
@@ -101,10 +136,14 @@ let value_to_string value =
       match value with Some v -> ListStyle.to_string v | None -> "" )
   | Encoding value -> (
       match value with Some v -> Encoding.to_string v | None -> "" )
+  | ColumnList value -> (
+      match value with Some v -> Column.to_string_list v | None -> "" )
 
 let get t key =
   match Ezjsonm.find_opt t [ Key.to_string key ] with
-  | Some json -> value_of_string key (Ezjsonm.get_string json)
+  | Some json -> 
+    value_of_string key (Ezjsonm.get_string json)
+
   | None -> get_default key
 
 let set t key value =
@@ -127,7 +166,8 @@ let get_string t key =
 let load =
   let cfg =
     match Sys.file_exists config_path with
-    | `Yes -> Yaml.of_string_exn (In_channel.read_all config_path)
+    | `Yes ->
+        Yaml.of_string_exn (In_channel.read_all config_path)
     | `No | `Unknown ->
         Unix.mkdir_p (Filename.dirname config_path);
         Out_channel.write_all config_path
@@ -135,6 +175,7 @@ let load =
         Yaml.of_string_exn (In_channel.read_all config_path)
   in
 
+  (* intiailize the state directory if it is missing *)
   let state_dir = get_string cfg `StateDir in
   match Sys.file_exists state_dir with
   | `Yes -> cfg
