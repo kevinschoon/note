@@ -44,7 +44,7 @@ let get_description t =
         | None -> None )
     | None -> None
   in
-  match description with Some description -> description | None -> "" 
+  match description with Some description -> description | None -> ""
 
 let get_tags t =
   match t.frontmatter with
@@ -211,28 +211,27 @@ module Display = struct
 
   type row = cell list
 
-  let to_cells notes =
-    [
-      [
-        ("title", [ Bold; Underlined ]);
-        ("description", [ Bold; Underlined ]);
-        ("tags", [ Bold; Underlined ]);
-        ("words", [ Bold; Underlined ]);
-        ("slug", [ Bold; Underlined ]);
-      ];
-    ]
-    @ List.fold ~init:[]
-        ~f:(fun accm note ->
-          let title = (get_title note, [ Reset ]) in
-          let tags = (String.concat ~sep:"|" (get_tags note), [ Reset ]) in
-          let description = (get_description note, [Reset]) in
-          let word_count =
+  let to_cells columns notes =
+    let header =
+      List.map ~f:(fun column -> (Config.Column.to_string column, [ Bold; Underlined ])) columns
+    in
+    let note_cells = List.fold ~init: [] ~f: (fun accm note -> 
+      accm @ [ List.map ~f: (fun column -> 
+        match column with
+        | `Title ->
+          ((get_title note), [Reset])
+        | `Description ->
+          ((get_description note), [Reset])
+        | `Tags ->(String.concat ~sep:"|" (get_tags note), [ Reset ])
+        | `WordCount -> 
             ( Core.sprintf "%d" (List.length (Util.to_words note.markdown)),
               [ Reset ] )
-          in
-          let slug = (Slug.to_string note.slug, [ Reset ]) in
-          accm @ [ [ title; description; tags; word_count; slug ] ])
-        notes
+        | `Slug -> (Slug.to_string note.slug, [Reset])
+      ) columns ]
+    ) notes in
+
+    [ header ] @ note_cells
+
 
   let fixed_spacing cells =
     (* find the maximum column length for all cells *)
@@ -271,8 +270,8 @@ module Display = struct
           ])
       cells
 
-  let to_stdout ~style notes =
-    let cells = to_cells notes in
+  let to_stdout ~columns ~style notes =
+    let cells = to_cells columns notes in
     match style with
     | `Simple ->
         List.iter

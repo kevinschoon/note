@@ -228,6 +228,12 @@ note ls
              (ListStyle.of_string (value_to_string (get load `ListStyle)))
              (Arg_type.create ListStyle.of_string))
           ~doc:"list style [fixed | wide | simple]"
+      and columns =
+        flag "columns"
+          (optional_with_default
+             (Column.of_string_list (value_to_string (get load `ColumnList)))
+             (Arg_type.create Column.of_string_list))
+          ~doc:"columns to include in output"
       in
       fun () ->
         let open Note.Filter in
@@ -236,7 +242,7 @@ note ls
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        to_stdout ~style notes]
+        to_stdout ~columns: columns ~style notes]
 
 let run =
   Command.run ~version:"%%VERSION%%"

@@ -35,5 +35,5 @@ module Display : sig
 
   type row = cell list
 
-  val to_stdout : style:[< `Fixed | `Simple | `Wide ] -> t list -> unit
+  val to_stdout : columns: Config.Column.t list -> style:[< `Fixed | `Simple | `Wide ] -> t list -> unit
 end
