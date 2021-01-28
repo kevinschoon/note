@@ -17,7 +17,7 @@ module Encoding : sig
 end
 
 module Column : sig
-  type t = [ `Title | `Tags | `WordCount | `Slug ]
+  type t = [ `Title | `Description | `Tags | `WordCount | `Slug ]
 
   val of_string : string -> t
 

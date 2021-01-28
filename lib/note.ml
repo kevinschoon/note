@@ -35,6 +35,17 @@ let get_title t =
       in
       match title with Some e -> Omd_backend.text_of_md [ e ] | None -> "???" )
 
+let get_description t =
+  let description =
+    match t.frontmatter with
+    | Some fm -> (
+        match Ezjsonm.find_opt (Ezjsonm.value fm) [ "description" ] with
+        | Some v -> Some (Ezjsonm.get_string v)
+        | None -> None )
+    | None -> None
+  in
+  match description with Some description -> description | None -> "" 
+
 let get_tags t =
   match t.frontmatter with
   | Some fm -> (
@@ -204,6 +215,7 @@ module Display = struct
     [
       [
         ("title", [ Bold; Underlined ]);
+        ("description", [ Bold; Underlined ]);
         ("tags", [ Bold; Underlined ]);
         ("words", [ Bold; Underlined ]);
         ("slug", [ Bold; Underlined ]);
@@ -213,12 +225,13 @@ module Display = struct
         ~f:(fun accm note ->
           let title = (get_title note, [ Reset ]) in
           let tags = (String.concat ~sep:"|" (get_tags note), [ Reset ]) in
+          let description = (get_description note, [Reset]) in
           let word_count =
             ( Core.sprintf "%d" (List.length (Util.to_words note.markdown)),
               [ Reset ] )
           in
           let slug = (Slug.to_string note.slug, [ Reset ]) in
-          accm @ [ [ title; tags; word_count; slug ] ])
+          accm @ [ [ title; description; tags; word_count; slug ] ])
         notes
 
   let fixed_spacing cells =

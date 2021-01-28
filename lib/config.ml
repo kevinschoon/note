@@ -39,16 +39,18 @@ module Encoding = struct
 end
 
 module Column = struct
-  type t = [ `Title | `Tags | `WordCount | `Slug ]
+  type t = [ `Title | `Description | `Tags | `WordCount | `Slug ]
 
   let to_string = function
     | `Title -> "title"
+    | `Description -> "description"
     | `Tags -> "tags"
     | `WordCount -> "words"
     | `Slug -> "slug"
 
   let of_string = function
     | "title" -> `Title
+    | "description" -> `Description
     | "tags" -> `Tags
     | "words" -> `WordCount
     | "slug" -> `Slug

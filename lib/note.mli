@@ -6,6 +6,9 @@ val build : ?tags:string list -> ?content:string -> title:string -> Slug.t -> t
 val get_title : t -> string
 (** access the title of a note *)
 
+val get_description : t -> string
+(** access the description of a note *)
+
 val get_path : t -> string
 (** access the absolute path of a note *)
 
