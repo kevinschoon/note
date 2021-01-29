@@ -67,6 +67,7 @@ module Key = struct
     | `LockFile
     | `Editor
     | `OnModification
+    | `OnSync
     | `ListStyle
     | `Encoding
     | `ColumnList ]
@@ -77,6 +78,7 @@ module Key = struct
       `LockFile;
       `Editor;
       `OnModification;
+      `OnSync;
       `ListStyle;
       `Encoding;
       `ColumnList;
@@ -87,6 +89,7 @@ module Key = struct
     | "lock_file" -> `LockFile
     | "editor" -> `Editor
     | "on_modification" -> `OnModification
+    | "on_sync" -> `OnSync
     | "list_style" -> `ListStyle
     | "encoding" -> `Encoding
     | "column_list" -> `ColumnList
@@ -97,6 +100,7 @@ module Key = struct
     | `LockFile -> "lock_file"
     | `Editor -> "editor"
     | `OnModification -> "on_modification"
+    | `OnSync -> "on_sync"
     | `ListStyle -> "list_style"
     | `Encoding -> "encoding"
     | `ColumnList -> "column_list"
@@ -117,6 +121,7 @@ let get_default = function
   | `LockFile -> String (Some (Filename.concat base_xdg_share_path "/note"))
   | `Editor -> String (Sys.getenv "EDITOR")
   | `OnModification -> String None
+  | `OnSync -> String None
   | `ListStyle -> ListStyle (Some `Fixed)
   | `Encoding -> Encoding (Some `Raw)
   | `ColumnList -> ColumnList (Some [ `Title; `Tags; `WordCount; `Slug ])
@@ -127,6 +132,7 @@ let value_of_string key s =
   | `LockFile -> String (Some s)
   | `Editor -> String (Some s)
   | `OnModification -> String (Some s)
+  | `OnSync -> String (Some s)
   | `ListStyle -> ListStyle (Some (ListStyle.of_string s))
   | `Encoding -> Encoding (Some (Encoding.of_string s))
   | `ColumnList -> ColumnList (Some (Column.of_string_list s))
@@ -143,9 +149,7 @@ let value_to_string value =
 
 let get t key =
   match Ezjsonm.find_opt t [ Key.to_string key ] with
-  | Some json -> 
-    value_of_string key (Ezjsonm.get_string json)
-
+  | Some json -> value_of_string key (Ezjsonm.get_string json)
   | None -> get_default key
 
 let set t key value =
@@ -168,8 +172,7 @@ let get_string t key =
 let load =
   let cfg =
     match Sys.file_exists config_path with
-    | `Yes ->
-        Yaml.of_string_exn (In_channel.read_all config_path)
+    | `Yes -> Yaml.of_string_exn (In_channel.read_all config_path)
     | `No | `Unknown ->
         Unix.mkdir_p (Filename.dirname config_path);
         Out_channel.write_all config_path
@@ -184,5 +187,11 @@ let load =
   | `No | `Unknown ->
       Unix.mkdir_p state_dir;
       cfg
+
+let populate t =
+  List.fold ~init:t ~f: (fun accm key ->
+    let value = get accm key in
+    set accm key value
+  ) Key.all
 
 let save t = Out_channel.write_all ~data:(to_string t) config_path

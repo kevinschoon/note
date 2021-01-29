@@ -75,7 +75,7 @@ note cat -encoding json
 
 let config_show =
   Command.basic ~summary:"show the current configuration"
-    (Command.Param.return (fun () -> print_string (to_string load)))
+    (Command.Param.return (fun () -> print_string (to_string (populate load))))
 
 let config_get =
   let open Command.Let_syntax in
@@ -206,7 +206,7 @@ note edit fuubar
 let list_notes =
   let open Note.Display in
   let open Command.Let_syntax in
-  Command.basic ~summary:"list notes"
+  Command.basic ~summary:"list existing notes"
     ~readme:(fun () ->
       {| 
 List notes that match the filter criteria, if no filter criteria is given all notes will be listed
@@ -242,7 +242,14 @@ note ls
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        to_stdout ~columns: columns ~style notes]
+        to_stdout ~columns ~style notes]
+
+let sync =
+  Command.basic ~summary:"sync notes to a remote server"
+    (Command.Param.return (fun () ->
+         let cfg = load in
+         let on_sync = Config.get_string_opt cfg `OnSync in
+         Sync.sync on_sync))
 
 let run =
   Command.run ~version:"%%VERSION%%"
@@ -257,4 +264,5 @@ let run =
          ("delete", delete_note);
          ("edit", edit_note);
          ("ls", list_notes);
+         ("sync", sync);
        ])
