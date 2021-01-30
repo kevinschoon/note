@@ -1,0 +1,30 @@
+#!/bin/bash
+# This is an example script that will synchronize a git repository that is
+# presumed to be the state_dir of a note directory. It will initially check
+# to see if changes exist remotely and try to rebase them onto the current
+# HEAD.
+set -e
+
+REMOTE="origin"
+
+
+STATE_DIR="$(note config get state_dir)"
+GIT_DIR="$STATE_DIR/.git"
+WORK_DIR="$STATE_DIR"
+GIT="git --git-dir=$GIT_DIR --work-tree=$WORK_DIR"
+
+# assume the current branch is desired
+BRANCH="$($GIT branch --show-current)"
+
+$GIT fetch --quiet --all
+
+LOCAL_HEAD="$($GIT rev-parse @)"
+REMOTE_HEAD="$($GIT rev-parse $REMOTE/$BRANCH)"
+
+# check if remote and local head are out of sync, if they are then pull down
+# changes with --rebase --interactive
+if [[ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]] ; then
+  $GIT pull --quiet --ff-only "$REMOTE" "$BRANCH"
+fi
+
+$GIT push --quiet "$REMOTE" "$BRANCH"
