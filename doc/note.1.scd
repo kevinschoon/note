@@ -2,7 +2,7 @@ note(1)
 
 # NAME
 
-note - a simple note taking command line interface
+*Note* is a simple CLI based note taking application
 
 # SYNOPSIS
 
@@ -10,35 +10,15 @@ note - a simple note taking command line interface
 
 # DESCRIPTION
 
-*note* is a command line interface for recording notes in the markdown format. It can be
-configured to automatically commit modifications to a git repository and even synchronize
-changes to a remote host.
+*note* is a command line interface for recording notes in the markdown format.
+It maintains a directory of plain text files with a preamble of structured 
+data for indexing, reference, and additional functionality.
 
-# SUBCOMMANDS
+# SYNCHRONIZING
 
-## cat
-
-output one or more notes to stdout
-
-## config
-
-display the configuration
-
-## create
-
-create a new note
-
-## delete
-
-delete an existing note
-
-## edit
-
-edit an existing note
-
-## ls
-
-list notes in the database
+Synchronization can be accomplished by writing shell scripts that are invoked
+by the *note* program. Note is shipped with some example scripts that you can
+find with your package manager.
 
 # EXAMPLES
 
@@ -55,10 +35,14 @@ note create -stdin "Hello World" <<EOF
 EOF
 ```
 
+note cat "Hello World" | jq '.data[0] | add'
+14
+
 # SEE ALSO
 
 *note*(5)
 
 # AUTHORS
 
-Written by Kevin Schoon <kevinschoon@pm.me>. Source code available at https://github.com/kevinschoon/note
+Written by Kevin Schoon <kevinschoon@pm.me>. 
+Source code available at https://github.com/kevinschoon/note

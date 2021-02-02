@@ -10,6 +10,7 @@ A note is a simple markdown document that contains zero or more instances of str
 ```
 ---
 title: This is a Note
+description: ""
 tags: [ocaml, programming]
 ---
 

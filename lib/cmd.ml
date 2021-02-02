@@ -36,19 +36,12 @@ let key_arg =
 
 let cat_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"write a note to stdout"
+  Command.basic ~summary:"write notes to stdout"
     ~readme:(fun () ->
       {|
-Write one or more notes to stdout. By default the cat command will write every note 
-to stdout as plain text however the encoding can be adjusted to `yaml` or `json` 
-for consumption by other tools. 
-
-Examples:
-
-# print the parsed content of the fuubar note
-note cat fuubar
-# write all commands as a json list
-note cat -encoding json
+Write one or more notes to stdout. By default the cat command will write every 
+note to stdout as plain text however the encoding can be adjusted to yaml or 
+json for consumption by other tools.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
@@ -99,21 +92,8 @@ let create_note =
   Command.basic ~summary:"create a new note"
     ~readme:(fun () ->
       {|
-Create a new note and save it to disk in your configured `state_dir`. 
-The `on_modification` call back will be invoked if the file is committed to disk.
-
-Examples:
-
-# create a new note with the given title and tags
-note create "Remember The Milk" groceries fuu bar
-# create a note by reading from stdin
-note create -stdin <<EOF
-# My Important Note
-
-Hello World!
-EOF
-# the title will be inferred from the heading
-note ls "My Important Note"
+Create a new note and save it to disk in your configured state_dir. The
+on_modification callback will be invoked if the file is committed to disk.
 |})
     [%map_open
       let open_stdin =
@@ -145,12 +125,7 @@ let delete_note =
   Command.basic ~summary:"delete an existing note"
     ~readme:(fun () ->
       {|
-Delete the first note that matches the filter criteria. The `on_modification` call back will be invoked if the note is deleted. 
-
-Examples
-
-# delete the note called fuubar
-note delete fuubar
+Delete the first note that matches the filter criteria.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
@@ -176,13 +151,8 @@ let edit_note =
   let open Command.Let_syntax in
   Command.basic ~summary:"edit an existing note"
     ~readme:(fun () ->
-      {| 
-Select a note that matches the filter criteria and open it in your `$EDITOR`. The `on_modification` call back will be invoked if the edited file differs from the original. 
-
-Examples
-
-# edit the fuubar note
-note edit fuubar
+      {|
+Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
@@ -209,13 +179,8 @@ let list_notes =
   Command.basic ~summary:"list existing notes"
     ~readme:(fun () ->
       {| 
-List notes that match the filter criteria, if no filter criteria is given all notes will be listed
-
-Examples
-
-# list all notes
-note ls
-```
+List one or more notes that match the filter criteria, if no filter criteria 
+is provided then all notes will be listed.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
