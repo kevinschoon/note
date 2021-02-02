@@ -213,25 +213,32 @@ module Display = struct
 
   let to_cells columns notes =
     let header =
-      List.map ~f:(fun column -> (Config.Column.to_string column, [ Bold; Underlined ])) columns
+      List.map
+        ~f:(fun column ->
+          (Config.Column.to_string column, [ Bold; Underlined ]))
+        columns
     in
-    let note_cells = List.fold ~init: [] ~f: (fun accm note -> 
-      accm @ [ List.map ~f: (fun column -> 
-        match column with
-        | `Title ->
-          ((get_title note), [Reset])
-        | `Description ->
-          ((get_description note), [Reset])
-        | `Tags ->(String.concat ~sep:"|" (get_tags note), [ Reset ])
-        | `WordCount -> 
-            ( Core.sprintf "%d" (List.length (Util.to_words note.markdown)),
-              [ Reset ] )
-        | `Slug -> (Slug.to_string note.slug, [Reset])
-      ) columns ]
-    ) notes in
-
+    let note_cells =
+      List.fold ~init:[]
+        ~f:(fun accm note ->
+          accm
+          @ [
+              List.map
+                ~f:(fun column ->
+                  match column with
+                  | `Title -> (get_title note, [ Reset ])
+                  | `Description -> (get_description note, [ Reset ])
+                  | `Tags -> (String.concat ~sep:"|" (get_tags note), [ Reset ])
+                  | `WordCount ->
+                      ( Core.sprintf "%d"
+                          (List.length (Util.to_words note.markdown)),
+                        [ Reset ] )
+                  | `Slug -> (Slug.to_string note.slug, [ Reset ]))
+                columns;
+            ])
+        notes
+    in
     [ header ] @ note_cells
-
 
   let fixed_spacing cells =
     (* find the maximum column length for all cells *)
@@ -243,7 +250,7 @@ module Display = struct
             let current_max =
               match List.nth accm i with Some len -> len | None -> 0
             in
-            if col_length > current_max then col_length + 1 else current_max)
+            if col_length > current_max then col_length+2 else current_max)
           row)
       cells
 
