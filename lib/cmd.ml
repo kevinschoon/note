@@ -216,8 +216,13 @@ let sync =
          let on_sync = Config.get_string_opt cfg `OnSync in
          Sync.sync on_sync))
 
+let version = 
+  (match Build_info.V1.version () with
+   | None -> "n/a"
+   | Some v -> Build_info.V1.Version.to_string v)
+
 let run =
-  Command.run ~version:"%%VERSION%%"
+  Command.run ~version:version ~build_info:""
     (Command.group ~summary:"Note is a simple CLI based note taking application"
        [
          ("cat", cat_note);

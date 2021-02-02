@@ -4,10 +4,3 @@
  (libraries note_lib)
  (modes exe)
  (ocamlopt_flags))
-
- (install
-  (section man)
-  (files ../doc/note.1))
- (install
-  (section share)
-  (files ../completion/note))

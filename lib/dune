@@ -2,4 +2,4 @@
  (name note_lib)
  (preprocess
   (pps ppx_jane))
- (libraries ANSITerminal base core ezjsonm omd stdio yaml))
+ (libraries ANSITerminal base core dune-build-info ezjsonm omd stdio yaml))
