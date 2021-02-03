@@ -31,9 +31,11 @@ module Filter : sig
 end
 
 module Display : sig
-  type cell = string * ANSITerminal.style list
+  type cell = string * int * int
 
   type row = cell list
+
+  type pair = string * ANSITerminal.color
 
   val to_stdout : columns: Config.Column.t list -> style:[< `Fixed | `Simple | `Wide ] -> t list -> unit
 end
