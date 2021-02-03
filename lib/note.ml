@@ -209,18 +209,14 @@ module Display = struct
 
   type row = cell list
 
-  type pair = string * color
+  let paint_tag (styles : Config.StylePair.t list) text : string =
+    match
+      List.find ~f:(fun entry -> String.equal entry.pattern text) styles
+    with
+    | Some entry -> sprintf entry.styles "%s" text
+    | None -> sprintf [ Foreground Default ] "%s" text
 
-  let paint_tag pairs text =
-    let color =
-      match List.find ~f:(fun entry -> String.equal (fst entry) text) pairs with
-      | Some color_text -> 
-        snd color_text
-      | None -> Foreground Default
-    in
-    sprintf [ color ] "%s" text
-
-  let to_cells columns notes =
+  let to_cells columns styles notes =
     let header =
       List.map
         ~f:(fun column ->
@@ -245,15 +241,12 @@ module Display = struct
                   | `Description ->
                       let text_value = get_description note in
                       (text_value, String.length text_value, default_padding)
-                  (* TODO: Colourized tags *)
                   | `Tags ->
                       let text_value = String.concat ~sep:"|" (get_tags note) in
                       let text_length = String.length text_value in
                       let tags = get_tags note in
                       let tags =
-                        List.map
-                          ~f:(fun tag -> paint_tag [ ] tag)
-                          tags
+                        List.map ~f:(fun tag -> paint_tag styles tag) tags
                       in
                       let text_value = String.concat ~sep:"|" tags in
                       (text_value, text_length, default_padding)
@@ -323,8 +316,8 @@ module Display = struct
           ])
       cells
 
-  let to_stdout ~columns ~style notes =
-    let cells = to_cells columns notes in
+  let to_stdout ~columns ~style ~text_styles notes =
+    let cells = to_cells columns text_styles notes in
     match style with
     | `Simple ->
         List.iter

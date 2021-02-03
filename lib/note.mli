@@ -35,7 +35,10 @@ module Display : sig
 
   type row = cell list
 
-  type pair = string * ANSITerminal.color
-
-  val to_stdout : columns: Config.Column.t list -> style:[< `Fixed | `Simple | `Wide ] -> t list -> unit
+  val to_stdout :
+    columns:Config.Column.t list ->
+    style:Config.ListStyle.t ->
+    text_styles:Config.StylePair.t list ->
+    t list ->
+    unit
 end

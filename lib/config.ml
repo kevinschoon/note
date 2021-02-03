@@ -1,5 +1,7 @@
 open Core
 
+let noop a = a
+
 let home = Sys.home_directory ()
 
 let base_xdg_config_path = Filename.concat home ".config"
@@ -42,6 +44,70 @@ module Encoding = struct
     | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
 
+module StylePair = struct
+  open ANSITerminal
+
+  type t = { pattern : string; styles : style list }
+
+  let make pattern styles = { pattern; styles }
+
+  let style_of_string = function
+    (* TODO: uhhh.... *)
+    | "Foreground Black" | "Black" | "black" -> Foreground Black
+    | "Foreground Red" | "Red" | "red" -> Foreground Red
+    | "Foreground Green" | "Green" | "green" -> Foreground Green
+    | "Foreground Yellow" | "Yellow" | "yellow" -> Foreground Yellow
+    | "Foreground Blue" | "Blue" | "blue" -> Foreground Blue
+    | "Foreground Magenta" | "Magenta" | "magenta" -> Foreground Magenta
+    | "Foreground Cyan" | "Cyan" | "cyan" -> Foreground Cyan
+    | "Foreground White" | "White" | "white" -> Foreground White
+    | "Background Black" -> Background Black
+    | "Background Red" -> Background Red
+    | "Background Green" -> Background Green
+    | "Background Yellow" -> Background Yellow
+    | "Background Blue" -> Background Blue
+    | "Background Magenta" -> Background Magenta
+    | "Background Cyan" -> Background Cyan
+    | "Background White" -> Background White
+    | "Bold" -> Bold
+    | "Inverse" -> Inverse
+    | "Underlined" -> Underlined
+    | name -> failwith (Core.sprintf "bad color: %s" name)
+
+  let style_to_string = function
+    | Foreground Blue -> "Foreground Blue"
+    | Foreground Red -> "Foreground Red"
+    | Underlined -> "Underlined"
+    | _ -> failwith "no"
+
+  let of_json values =
+    Ezjsonm.get_list
+      (fun entry ->
+        let pattern = Ezjsonm.get_string (Ezjsonm.find entry [ "pattern" ])
+        and styles =
+          Ezjsonm.get_list
+            (fun entry ->
+              let style = Ezjsonm.get_string entry in
+              style_of_string style)
+            (Ezjsonm.find entry [ "style" ])
+        in
+        make pattern styles)
+      values
+
+  let to_json styles =
+    List.map
+      ~f:(fun pair ->
+        let style_strings =
+          List.map ~f:Ezjsonm.string (List.map ~f:style_to_string pair.styles)
+        in
+        Ezjsonm.dict
+          [
+            ("pattern", Ezjsonm.string pair.pattern);
+            ("style", Ezjsonm.list noop style_strings);
+          ])
+      styles
+end
+
 module Column = struct
   type t = [ `Title | `Description | `Tags | `WordCount | `Slug ]
 
@@ -70,7 +136,8 @@ module Key = struct
     | `OnSync
     | `ListStyle
     | `Encoding
-    | `ColumnList ]
+    | `ColumnList
+    | `Styles ]
 
   let all =
     [
@@ -82,6 +149,7 @@ module Key = struct
       `ListStyle;
       `Encoding;
       `ColumnList;
+      `Styles;
     ]
 
   let of_string = function
@@ -93,6 +161,7 @@ module Key = struct
     | "list_style" -> `ListStyle
     | "encoding" -> `Encoding
     | "column_list" -> `ColumnList
+    | "styles" -> `Styles
     | key -> failwith (sprintf "bad configuration key %s" key)
 
   let to_string = function
@@ -104,6 +173,7 @@ module Key = struct
     | `ListStyle -> "list_style"
     | `Encoding -> "encoding"
     | `ColumnList -> "column_list"
+    | `Styles -> "styles"
 end
 
 type t = {
@@ -115,6 +185,7 @@ type t = {
   list_style : ListStyle.t;
   encoding : Encoding.t;
   column_list : Column.t list;
+  styles : StylePair.t list;
 }
 
 let of_string str =
@@ -152,6 +223,10 @@ let of_string str =
     | Some column_list ->
         List.map ~f:Column.of_string (Ezjsonm.get_strings column_list)
     | None -> [ `Title; `Tags; `WordCount; `Slug ]
+  and styles =
+    match Ezjsonm.find_opt json [ Key.to_string `Styles ] with
+    | Some values -> StylePair.of_json values
+    | None -> []
   in
   {
     state_dir;
@@ -162,6 +237,7 @@ let of_string str =
     list_style;
     encoding;
     column_list;
+    styles;
   }
 
 let to_string t =
@@ -177,9 +253,8 @@ let to_string t =
     else Ezjsonm.unit ()
   and list_style = Ezjsonm.string (ListStyle.to_string t.list_style)
   and encoding = Ezjsonm.string (Encoding.to_string t.encoding)
-  and column_list =
-    Ezjsonm.strings (List.map ~f:Column.to_string t.column_list)
-  in
+  and column_list = Ezjsonm.strings (List.map ~f:Column.to_string t.column_list)
+  and styles = StylePair.to_json t.styles in
   Yaml.to_string_exn
     (Ezjsonm.dict
        [
@@ -191,6 +266,7 @@ let to_string t =
          (Key.to_string `ListStyle, list_style);
          (Key.to_string `Encoding, encoding);
          (Key.to_string `ColumnList, column_list);
+         (Key.to_string `Styles, Ezjsonm.list noop styles);
        ])
 
 let get t key =
@@ -205,6 +281,8 @@ let get t key =
   | `Encoding -> Encoding.to_string t.encoding
   | `ColumnList ->
       String.concat ~sep:" " (List.map ~f:Column.to_string t.column_list)
+  | `Styles ->
+      Ezjsonm.to_string (Ezjsonm.list noop (StylePair.to_json t.styles))
 
 let set t key value =
   match key with
@@ -224,6 +302,9 @@ let set t key value =
         t with
         column_list = List.map ~f:Column.of_string (String.split ~on:' ' value);
       }
+  | `Styles ->
+      let styles = StylePair.of_json (Yaml.of_string_exn value) in
+      { t with styles }
 
 let load =
   let cfg =
@@ -242,12 +323,5 @@ let load =
   | `No | `Unknown ->
       Unix.mkdir_p cfg.state_dir;
       cfg
-
-let populate t =
-  List.fold ~init:t
-    ~f:(fun accm key ->
-      let value = get accm key in
-      set accm key value)
-    Key.all
 
 let save t = Out_channel.write_all ~data:(to_string t) config_path

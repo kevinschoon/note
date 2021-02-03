@@ -219,7 +219,8 @@ is provided then all notes will be listed.
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        to_stdout ~columns ~style notes]
+        let text_styles = cfg.styles in
+        to_stdout ~columns ~style ~text_styles notes]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"
