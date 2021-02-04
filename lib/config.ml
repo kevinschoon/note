@@ -53,14 +53,14 @@ module StylePair = struct
 
   let style_of_string = function
     (* TODO: uhhh.... *)
-    | "Foreground Black" | "Black" | "black" -> Foreground Black
-    | "Foreground Red" | "Red" | "red" -> Foreground Red
-    | "Foreground Green" | "Green" | "green" -> Foreground Green
-    | "Foreground Yellow" | "Yellow" | "yellow" -> Foreground Yellow
-    | "Foreground Blue" | "Blue" | "blue" -> Foreground Blue
-    | "Foreground Magenta" | "Magenta" | "magenta" -> Foreground Magenta
-    | "Foreground Cyan" | "Cyan" | "cyan" -> Foreground Cyan
-    | "Foreground White" | "White" | "white" -> Foreground White
+    | "Foreground Black" -> Foreground Black
+    | "Foreground Red" -> Foreground Red
+    | "Foreground Green" -> Foreground Green
+    | "Foreground Yellow" -> Foreground Yellow
+    | "Foreground Blue" -> Foreground Blue
+    | "Foreground Magenta" -> Foreground Magenta
+    | "Foreground Cyan" -> Foreground Cyan
+    | "Foreground White" -> Foreground White
     | "Background Black" -> Background Black
     | "Background Red" -> Background Red
     | "Background Green" -> Background Green
@@ -75,8 +75,24 @@ module StylePair = struct
     | name -> failwith (Core.sprintf "bad color: %s" name)
 
   let style_to_string = function
-    | Foreground Blue -> "Foreground Blue"
+    | Foreground Black -> "Foreground Black"
     | Foreground Red -> "Foreground Red"
+    | Foreground Green -> "Foreground Green"
+    | Foreground Yellow -> "Foreground Yellow"
+    | Foreground Blue -> "Foreground Blue"
+    | Foreground Magenta -> "Foreground Magenta"
+    | Foreground Cyan -> "Foreground Cyan"
+    | Foreground White -> "Foreground White"
+    | Background Black -> "Background Black"
+    | Background Red -> "Background Red"
+    | Background Green -> "Background Green"
+    | Background Yellow -> "Background Yellow"
+    | Background Blue -> "Background Blue"
+    | Background Magenta -> "Background Magenta"
+    | Background Cyan -> "Background Cyan"
+    | Background White -> "Background White"
+    | Bold -> "Bold"
+    | Inverse -> "Inverse"
     | Underlined -> "Underlined"
     | _ -> failwith "no"
 
