@@ -1,5 +1,5 @@
 opam-version: "2.0"
-version: "0.5.8"
+version: "0.6.1"
 synopsis: "Note is a simple CLI based note taking program"
 description: "Note is a simple CLI based note taking program"
 maintainer: ["Kevin Schoon <kevinschoon@gmail.com>"]
