@@ -190,7 +190,6 @@ Select a note that matches the filter criteria and open it in your text editor.
         | None -> failwith "not found"]
 
 let list_notes =
-  let open Note.Display in
   let open Command.Let_syntax in
   Command.basic ~summary:"list existing notes"
     ~readme:(fun () ->
@@ -219,8 +218,10 @@ is provided then all notes will be listed.
           Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
-        let text_styles = cfg.styles in
-        to_stdout ~columns ~style ~text_styles notes]
+        let styles = cfg.styles in
+        let cells = Note.to_cells ~columns ~styles notes in
+        Display.to_stdout ~style cells;
+        ]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"

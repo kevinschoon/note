@@ -22,7 +22,8 @@ let get_title t =
   in
   match title with
   | Some title -> title
-  (* Since we couldn't determine the title from frontmatter now we will infer the title by looking at the markdown *)
+  (* Since we couldn't determine the title from frontmatter now we will
+     infer the title by looking at the markdown *)
   | None -> (
       let title =
         List.find
@@ -66,7 +67,6 @@ let get_data t =
             | "JSON" | "Json" | "json" ->
                 Some (Ezjsonm.value (Ezjsonm.from_string data))
             | "YAML" | "Yaml" | "yaml" -> Some (Yaml.of_string_exn data)
-            (* TODO Sexp, ...?? *)
             | _ -> None )
         | _ -> None)
       t.markdown
@@ -202,131 +202,58 @@ module Filter = struct
       notes
 end
 
-module Display = struct
-  open ANSITerminal
+open ANSITerminal
 
-  type cell = string * int * int
+let paint_tag (styles : Config.StylePair.t list) text : string =
+  match List.find ~f:(fun entry -> String.equal entry.pattern text) styles with
+  | Some entry -> sprintf entry.styles "%s" text
+  | None -> sprintf [ Foreground Default ] "%s" text
 
-  type row = cell list
-
-  let paint_tag (styles : Config.StylePair.t list) text : string =
-    match
-      List.find ~f:(fun entry -> String.equal entry.pattern text) styles
-    with
-    | Some entry -> sprintf entry.styles "%s" text
-    | None -> sprintf [ Foreground Default ] "%s" text
-
-  let to_cells columns styles notes =
-    let header =
-      List.map
-        ~f:(fun column ->
-          let text_value = Config.Column.to_string column in
-          let text_length = String.length text_value in
-          let text_value = sprintf [ Bold; Underlined ] "%s" text_value in
-          (text_value, text_length, 1))
-        columns
-    in
-    let note_cells =
-      let default_padding = 1 in
-      List.fold ~init:[]
-        ~f:(fun accm note ->
-          accm
-          @ [
-              List.map
-                ~f:(fun column ->
-                  match column with
-                  | `Title ->
-                      let text_value = get_title note in
-                      (text_value, String.length text_value, default_padding)
-                  | `Description ->
-                      let text_value = get_description note in
-                      (text_value, String.length text_value, default_padding)
-                  | `Tags ->
-                      let text_value = String.concat ~sep:"|" (get_tags note) in
-                      let text_length = String.length text_value in
-                      let tags = get_tags note in
-                      let tags =
-                        List.map ~f:(fun tag -> paint_tag styles tag) tags
-                      in
-                      let text_value = String.concat ~sep:"|" tags in
-                      (text_value, text_length, default_padding)
-                  | `WordCount ->
-                      let text_value =
-                        Core.sprintf "%d"
-                          (List.length (Util.to_words note.markdown))
-                      in
-                      (text_value, String.length text_value, default_padding)
-                  | `Slug ->
-                      let text_value = Slug.to_string note.slug in
-                      (text_value, String.length text_value, default_padding))
-                columns;
-            ])
-        notes
-    in
-    [ header ] @ note_cells
-
-  let fixed_spacing cells =
-    (* find the maximum cell length per column *)
-    let maximum_values =
-      List.fold ~init:[]
-        ~f:(fun accm row ->
-          List.mapi
-            ~f:(fun i col ->
-              let col_length = snd3 col in
-              let current_max =
-                match List.nth accm i with Some len -> len | None -> 0
-              in
-              if col_length > current_max then col_length + 2 else current_max)
-            row)
-        cells
-    in
-    maximum_values
-
-  let fix_right cells =
-    let widths = fixed_spacing cells in
-    let term_width, _ = size () in
-    let _, right = List.split_n widths 1 in
-    let col_one = List.nth_exn widths 0 in
-    [ col_one + (term_width - List.fold ~init:5 ~f:( + ) widths) ] @ right
-
-  let apply cells widths =
-    (* let maximums = fixed_spacing cells in *)
-    let cells =
-      List.map
-        ~f:(fun row ->
-          List.mapi
-            ~f:(fun i entry ->
-              let max = List.nth_exn widths i in
-              let text, length, padding = entry in
-              let padding = padding + (max - length) in
-              let padding = if padding > 0 then padding else 0 in
-              (text, length, padding))
-            row)
-        cells
-    in
+let to_cells ~columns ~styles notes =
+  let header =
+    List.map
+      ~f:(fun column ->
+        let text_value = Config.Column.to_string column in
+        let text_length = String.length text_value in
+        let text_value = sprintf [ Bold; Underlined ] "%s" text_value in
+        (text_value, text_length, 1))
+      columns
+  in
+  let note_cells =
+    let default_padding = 1 in
     List.fold ~init:[]
-      ~f:(fun accm row ->
+      ~f:(fun accm note ->
         accm
         @ [
-            List.fold ~init:""
-              ~f:(fun accm cell ->
-                let text, _, padding = cell in
-                String.concat [ accm; text; String.make padding ' ' ])
-              row;
+            List.map
+              ~f:(fun column ->
+                match column with
+                | `Title ->
+                    let text_value = get_title note in
+                    (text_value, String.length text_value, default_padding)
+                | `Description ->
+                    let text_value = get_description note in
+                    (text_value, String.length text_value, default_padding)
+                | `Tags ->
+                    let text_value = String.concat ~sep:"|" (get_tags note) in
+                    let text_length = String.length text_value in
+                    let tags = get_tags note in
+                    let tags =
+                      List.map ~f:(fun tag -> paint_tag styles tag) tags
+                    in
+                    let text_value = String.concat ~sep:"|" tags in
+                    (text_value, text_length, default_padding)
+                | `WordCount ->
+                    let text_value =
+                      Core.sprintf "%d"
+                        (List.length (Util.to_words note.markdown))
+                    in
+                    (text_value, String.length text_value, default_padding)
+                | `Slug ->
+                    let text_value = Slug.to_string note.slug in
+                    (text_value, String.length text_value, default_padding))
+              columns;
           ])
-      cells
-
-  let to_stdout ~columns ~style ~text_styles notes =
-    let cells = to_cells columns text_styles notes in
-    match style with
-    | `Simple ->
-        List.iter
-          ~f:(fun cell ->
-            print_endline
-              (let value = List.nth_exn cell 0 in
-               let text = fst3 value in
-               text))
-          cells
-    | `Fixed -> List.iter ~f:print_endline (apply cells (fixed_spacing cells))
-    | `Wide -> List.iter ~f:print_endline (apply cells (fix_right cells))
-end
+      notes
+  in
+  [ header ] @ note_cells
