@@ -72,9 +72,6 @@ json for consumption by other tools.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
-      and fulltext =
-        flag "fulltext" no_arg
-          ~doc:"perform a fulltext search instead of just key comparison"
       and encoding =
         flag "encoding"
           (optional_with_default cfg.encoding encoding_arg)
@@ -82,10 +79,7 @@ json for consumption by other tools.
       in
       fun () ->
         let open Note.Search in
-        let filter_kind = if fulltext then Some Fulltext else None in
-        let notes =
-          find_many ?strategy:filter_kind ~args:filter_args get_notes
-        in
+        let notes = find_many ~args:filter_args get_notes in
         List.iter
           ~f:(fun note ->
             print_endline (Note.Encoding.to_string ~style:encoding note))
@@ -148,18 +142,11 @@ let delete_note =
 Delete the first note that matches the filter criteria.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg))
-      and fulltext =
-        flag "fulltext" no_arg
-          ~doc:"perform a fulltext search instead of just key comparison"
-      in
+      let filter_args = anon (sequence ("filter" %: filter_arg)) in
       fun () ->
         let open Note.Search in
-        let filter_kind = if fulltext then Fulltext else Keys in
         let notes = get_notes in
-        let note =
-          Note.Search.find_one ~strategy:filter_kind ~args:filter_args notes
-        in
+        let note = find_one ~args:filter_args notes in
         match note with
         | Some note ->
             Io.delete ~callback:cfg.on_modification ~title:(Note.get_title note)
@@ -174,15 +161,10 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg))
-      and fulltext =
-        flag "fulltext" no_arg
-          ~doc:"perform a fulltext search instead of just key comparison"
-      in
+      let filter_args = anon (sequence ("filter" %: filter_arg)) in
       fun () ->
         let open Note.Search in
-        let filter_kind = if fulltext then Fulltext else Keys in
-        let note = find_one ~strategy:filter_kind ~args:filter_args get_notes in
+        let note = find_one ~args:filter_args get_notes in
         match note with
         | Some note ->
             Io.edit ~callback:cfg.on_modification ~editor:cfg.editor
@@ -199,9 +181,6 @@ is provided then all notes will be listed.
 |})
     [%map_open
       let filter_args = anon (sequence ("filter" %: filter_arg))
-      and fulltext =
-        flag "fulltext" no_arg
-          ~doc:"perform a fulltext search instead of just key comparison"
       and style =
         flag "style"
           (optional_with_default cfg.list_style list_style_arg)
@@ -213,15 +192,10 @@ is provided then all notes will be listed.
       in
       fun () ->
         let open Note.Search in
-        let filter_kind = if fulltext then Some Fulltext else None in
-        let notes =
-          Note.Search.find_many ?strategy:filter_kind ~args:filter_args
-            get_notes
-        in
+        let notes = find_many ~args:filter_args get_notes in
         let styles = cfg.styles in
         let cells = Note.to_cells ~columns ~styles notes in
-        Display.to_stdout ~style cells;
-        ]
+        Display.to_stdout ~style cells]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"

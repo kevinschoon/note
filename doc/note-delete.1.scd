@@ -19,11 +19,6 @@ Delete one or more notes that match the filter criteria.
 	*FILTER*
 		tag or text based search terms
 
-*optional arguments*
-
-	*-fulltext* 
-		perform full text search instead of key comparision
-
 # EXAMPLES
 ```
 # delete a note called fuubar

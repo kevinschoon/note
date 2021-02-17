@@ -26,9 +26,6 @@ json for consumption by other tools.
 	*-encoding* 
 		specify the output encoding
 
-	*-fulltext* 
-		perform full text search instead of key comparision
-
 # EXAMPLES
 ```
 # print the parsed content of the fuubar note

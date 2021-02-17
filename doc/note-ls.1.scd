@@ -25,9 +25,6 @@ is provided then all notes will be listed.
 	*-columns* 
 		columns to show in the note list
 
-	*-fulltext* 
-		perform full text search instead of key comparision
-
 	*-style* 
 		list style [fixed | wide | simple]
 

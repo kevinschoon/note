@@ -19,11 +19,6 @@ Select a note that matches the filter criteria and open it in your text editor.
 	*FILTER*
 		tag or text based search terms
 
-*optional arguments*
-
-	*-fulltext* 
-		perform full text search instead of key comparision
-
 # EXAMPLES
 ```
 # edit a note called fuubar

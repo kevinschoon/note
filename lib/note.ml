@@ -166,41 +166,59 @@ module Encoding = struct
 end
 
 module Search = struct
+  open Re.Str
 
-  type strategy = Keys | Fulltext
+  let dump_results results =
+    List.iter
+      ~f:(fun result ->
+        print_endline (sprintf "%s - %d" (get_title (snd result)) (fst result)))
+      results
 
-  let title key note = String.equal key (get_title note)
+  let title expr note =
+    let title_string = get_title note in
+    string_match expr title_string 0
 
-  let tags key note =
+  let tags expr note =
     let tags = get_tags note in
-    List.count ~f:(fun tag -> String.equal key tag) tags > 0
+    List.count ~f:(fun tag -> string_match expr tag 0) tags > 0
 
-  let of_strings strategy args =
-    match strategy with
-    | Keys ->
-        List.map
-          ~f:(fun arg ->
-            let has_title = title arg in
-            let has_tag = tags arg in
-            fun note -> has_title note || has_tag note)
-          args
-    | Fulltext -> failwith "not implemented"
+  let content expr note =
+    let words = Util.to_words note.markdown in
+    List.count ~f:(fun word -> string_match expr word 0) words > 0
 
-  let find_one ?(strategy = Keys) ~args notes =
-    let filters = of_strings strategy args in
-    List.find
-      ~f:(fun note ->
-        List.count ~f:(fun filter -> filter note) filters > 0
-        || List.length filters = 0)
-      notes
+  let match_and_rank ~args notes =
+    let expressions = List.map ~f:regexp args in
+    let matches =
+      List.fold ~init:[]
+        ~f:(fun accm note ->
+          let has_title =
+            List.count ~f:(fun expr -> title expr note) expressions > 0
+          in
+          let has_tag =
+            List.count ~f:(fun expr -> tags expr note) expressions > 0
+          in
+          let has_content =
+            List.count ~f:(fun expr -> content expr note) expressions > 0
+          in
+          match (has_title, has_tag, has_content) with
+          | true, _, _ -> List.append accm [ (20, note) ]
+          | _, true, _ -> List.append accm [ (10, note) ]
+          | _, _, true -> List.append accm [ (5, note) ]
+          | false, false, false -> accm)
+        notes
+    in
+    List.rev (List.sort ~compare:(fun n1 n2 -> fst n1 - fst n2) matches)
 
-  let find_many ?(strategy = Keys) ~args notes =
-    let filters = of_strings strategy args in
-    List.filter
-      ~f:(fun note ->
-        List.count ~f:(fun filter -> filter note) filters > 0
-        || List.length filters = 0)
-      notes
+  let find_one ~args notes =
+    let results = match_and_rank ~args notes in
+    let results = List.map ~f:snd results in
+    if List.length results = 0 then None else Some (List.hd_exn results)
+
+  let find_many ~args notes =
+    if List.length args = 0 then notes
+    else
+      let results = match_and_rank ~args notes in
+      List.map ~f:snd results
 end
 
 open ANSITerminal
