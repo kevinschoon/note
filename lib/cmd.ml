@@ -81,7 +81,7 @@ json for consumption by other tools.
           ~doc:"format [json | yaml | raw] (default: raw)"
       in
       fun () ->
-        let open Note.Filter in
+        let open Note.Search in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
           find_many ?strategy:filter_kind ~args:filter_args get_notes
@@ -154,11 +154,11 @@ Delete the first note that matches the filter criteria.
           ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
-        let open Note.Filter in
+        let open Note.Search in
         let filter_kind = if fulltext then Fulltext else Keys in
         let notes = get_notes in
         let note =
-          Note.Filter.find_one ~strategy:filter_kind ~args:filter_args notes
+          Note.Search.find_one ~strategy:filter_kind ~args:filter_args notes
         in
         match note with
         | Some note ->
@@ -180,7 +180,7 @@ Select a note that matches the filter criteria and open it in your text editor.
           ~doc:"perform a fulltext search instead of just key comparison"
       in
       fun () ->
-        let open Note.Filter in
+        let open Note.Search in
         let filter_kind = if fulltext then Fulltext else Keys in
         let note = find_one ~strategy:filter_kind ~args:filter_args get_notes in
         match note with
@@ -212,10 +212,10 @@ is provided then all notes will be listed.
           ~doc:"columns to include in output"
       in
       fun () ->
-        let open Note.Filter in
+        let open Note.Search in
         let filter_kind = if fulltext then Some Fulltext else None in
         let notes =
-          Note.Filter.find_many ?strategy:filter_kind ~args:filter_args
+          Note.Search.find_many ?strategy:filter_kind ~args:filter_args
             get_notes
         in
         let styles = cfg.styles in

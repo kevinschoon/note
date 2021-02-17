@@ -165,7 +165,8 @@ module Encoding = struct
     | `Yaml -> Yaml.to_string_exn (to_json t)
 end
 
-module Filter = struct
+module Search = struct
+
   type strategy = Keys | Fulltext
 
   let title key note = String.equal key (get_title note)
