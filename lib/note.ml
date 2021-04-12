@@ -1,6 +1,6 @@
 open Core
 
-type t = { frontmatter : Ezjsonm.t option; markdown : Omd.t; slug : Slug.t }
+type t = { frontmatter : Ezjsonm.t option; markdown : Omd.doc; slug : Slug.t }
 
 let build ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
@@ -11,30 +11,35 @@ let build ?(tags = []) ?(content = "") ~title slug =
   let markdown = Omd.of_string content in
   { frontmatter; markdown; slug }
 
+let rec title_of_markdown (blocks : Omd.block list) : string =
+  match blocks with
+  | [] -> ""
+  | hd :: tl -> (
+      match hd.bl_desc with
+      | Heading (_, content) -> (
+          match content.il_desc with
+          | Text text -> text
+          | _ -> title_of_markdown tl)
+      | Paragraph content -> (
+          match content.il_desc with
+          | Text text -> text
+          | _ -> title_of_markdown tl)
+      | _ -> "??")
+
 let get_title t =
   let title =
     match t.frontmatter with
     | Some fm -> (
         match Ezjsonm.find_opt (Ezjsonm.value fm) [ "title" ] with
         | Some v -> Some (Ezjsonm.get_string v)
-        | None -> None )
+        | None -> None)
     | None -> None
   in
   match title with
   | Some title -> title
   (* Since we couldn't determine the title from frontmatter now we will
      infer the title by looking at the markdown *)
-  | None -> (
-      let title =
-        List.find
-          ~f:(fun entry ->
-            match entry with
-            | Omd.H1 _ | Omd.H2 _ | Omd.H3 _ | Omd.H4 _ | Omd.H5 _ | Omd.H6 _ ->
-                true
-            | _ -> false)
-          t.markdown
-      in
-      match title with Some e -> Omd_backend.text_of_md [ e ] | None -> "???" )
+  | None -> title_of_markdown t.markdown
 
 let get_description t =
   let description =
@@ -42,7 +47,7 @@ let get_description t =
     | Some fm -> (
         match Ezjsonm.find_opt (Ezjsonm.value fm) [ "description" ] with
         | Some v -> Some (Ezjsonm.get_string v)
-        | None -> None )
+        | None -> None)
     | None -> None
   in
   match description with Some description -> description | None -> ""
@@ -52,27 +57,33 @@ let get_tags t =
   | Some fm -> (
       match Ezjsonm.find_opt (Ezjsonm.value fm) [ "tags" ] with
       | Some v -> Ezjsonm.get_strings v
-      | None -> [] )
+      | None -> [])
   | None -> []
 
 let get_path t = Slug.get_path t.slug
 
+let rec extract_structured_data (accm : Ezjsonm.value list) (doc : Omd.doc) :
+    Ezjsonm.value list =
+  match doc with
+  | [] -> accm
+  | hd :: tl -> (
+      match hd.bl_desc with
+      | Code_block (kind, content) -> (
+          match kind with
+          | "json" ->
+              let accm = accm @ [ Ezjsonm.from_string content ] in
+              extract_structured_data accm tl
+          | "yaml" ->
+              let accm = accm @ [ Ezjsonm.wrap (Yaml.of_string_exn content) ] in
+              extract_structured_data accm tl
+          | _ -> extract_structured_data accm tl)
+      | _ -> extract_structured_data accm tl)
+
 let get_data t =
-  let data =
-    List.filter_map
-      ~f:(fun entry ->
-        match entry with
-        | Code (language, data) | Code_block (language, data) -> (
-            match language with
-            | "JSON" | "Json" | "json" ->
-                Some (Ezjsonm.value (Ezjsonm.from_string data))
-            | "YAML" | "Yaml" | "yaml" -> Some (Yaml.of_string_exn data)
-            | _ -> None )
-        | _ -> None)
-      t.markdown
-  in
+  let data = extract_structured_data [] t.markdown in
   Ezjsonm.list (fun value -> value) data
 
+(* TODO: fix html conversion *)
 let to_json t =
   let frontmatter =
     match t.frontmatter with
@@ -82,7 +93,7 @@ let to_json t =
   Ezjsonm.dict
     [
       ("frontmatter", frontmatter);
-      ("content", Ezjsonm.string (Omd.to_text t.markdown));
+      ("content", Ezjsonm.string (Omd.to_html t.markdown));
       ("data", get_data t);
     ]
 
@@ -91,8 +102,8 @@ let to_string t =
   | Some fm ->
       let front_matter = Yaml.to_string_exn (Ezjsonm.value fm) in
       String.concat ~sep:"\n"
-        [ "---"; front_matter; "---"; Omd.to_text t.markdown ]
-  | None -> Omd.to_text t.markdown
+        [ "---"; front_matter; "---"; Omd.to_html t.markdown ]
+  | None -> Omd.to_html t.markdown
 
 let of_string ~data slug =
   let indexes = String.substr_index_all ~may_overlap:true ~pattern:"---" data in
@@ -109,7 +120,7 @@ let of_string ~data slug =
             "frontmatter is a partial fragment, should be either a dictionary \
              or list"
     in
-    let markdown : Omd.t =
+    let markdown : Omd.doc =
       Omd.of_string
         (String.slice data (List.nth_exn indexes 1 + 3) (String.length data))
     in
@@ -129,32 +140,18 @@ module Util = struct
         | _ -> Some x)
       (String.split ~on:' ' str)
 
-  let rec to_words markdown =
-    match markdown with
-    | [] -> []
-    | hd :: tl ->
-        ( match hd with
-        | Omd.Text s -> split_words s
-        | Omd.H1 v
-        | Omd.H2 v
-        | Omd.H3 v
-        | Omd.H4 v
-        | Omd.H5 v
-        | Omd.H6 v
-        | Omd.Blockquote v
-        | Omd.Bold v
-        | Omd.Emph v
-        | Omd.Paragraph v ->
-            to_words v
-        | Omd.Url (_, inner, title) -> split_words title @ to_words inner
-        | Omd.Ref (_, _, title, _) -> split_words title
-        | Omd.Ol l | Omd.Olp l | Omd.Ul l | Omd.Ulp l ->
-            List.fold
-              ~init:([] : string list)
-              ~f:(fun accm elem -> accm @ to_words elem)
-              l
-        | _ -> [] )
-        @ to_words tl
+  let rec to_words (accm : string list) (doc : Omd.doc) : string list =
+    let split_words inline =
+      match inline with Omd.Text text -> String.split ~on:' ' text | _ -> []
+    in
+    match doc with
+    | [] -> accm
+    | hd :: tl -> (
+        match hd.bl_desc with
+        | Paragraph inline ->
+            let accm = accm @ split_words inline.il_desc in
+            to_words accm tl
+        | _ -> to_words accm tl)
 end
 
 module Encoding = struct
@@ -183,7 +180,7 @@ module Search = struct
     List.count ~f:(fun tag -> string_match expr tag 0) tags > 0
 
   let content expr note =
-    let words = Util.to_words note.markdown in
+    let words = Util.to_words [] note.markdown in
     List.count ~f:(fun word -> string_match expr word 0) words > 0
 
   let match_and_rank ~args notes =
@@ -265,7 +262,7 @@ let to_cells ~columns ~styles notes =
                 | `WordCount ->
                     let text_value =
                       Core.sprintf "%d"
-                        (List.length (Util.to_words note.markdown))
+                        (List.length (Util.to_words [] note.markdown))
                     in
                     (text_value, String.length text_value, default_padding)
                 | `Slug ->
