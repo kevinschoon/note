@@ -160,6 +160,7 @@ module Encoding = struct
     | `Raw -> In_channel.read_all (get_path t)
     | `Json -> Ezjsonm.to_string (to_json t)
     | `Yaml -> Yaml.to_string_exn (to_json t)
+    | `Html -> Omd.to_html t.markdown
 end
 
 module Search = struct

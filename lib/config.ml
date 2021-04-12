@@ -31,15 +31,20 @@ module ListStyle = struct
 end
 
 module Encoding = struct
-  type t = [ `Json | `Yaml | `Raw ]
+  type t = [ `Json | `Yaml | `Html | `Raw ]
 
-  let all = [ `Json; `Yaml; `Raw ]
+  let all = [ `Json; `Yaml; `Html; `Raw ]
 
-  let to_string = function `Json -> "json" | `Yaml -> "yaml" | `Raw -> "raw"
+  let to_string = function
+    | `Json -> "json"
+    | `Yaml -> "yaml"
+    | `Html -> "html"
+    | `Raw -> "raw"
 
   let of_string = function
     | "json" -> `Json
     | "yaml" -> `Yaml
+    | "html" -> `Html
     | "raw" -> `Raw
     | key -> failwith (sprintf "unsupported encoding type: %s" key)
 end
@@ -291,8 +296,8 @@ let get t key =
   | `LockFile -> t.lock_file
   | `Editor -> t.editor
   | `OnModification -> (
-      match t.on_modification with Some value -> value | None -> "null" )
-  | `OnSync -> ( match t.on_sync with Some value -> value | None -> "null" )
+      match t.on_modification with Some value -> value | None -> "null")
+  | `OnSync -> ( match t.on_sync with Some value -> value | None -> "null")
   | `ListStyle -> ListStyle.to_string t.list_style
   | `Encoding -> Encoding.to_string t.encoding
   | `ColumnList ->
