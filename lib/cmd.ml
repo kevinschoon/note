@@ -5,8 +5,8 @@ let cfg = Config.load
 let get_notes =
   List.map
     ~f:(fun slug ->
-      let data = In_channel.read_all (Slug.get_path slug) in
-      Note.of_string ~data slug)
+      let content = In_channel.read_all (Slug.get_path slug) in
+      Note.of_string ~content slug)
     (Slug.load cfg.state_dir)
 
 let filter_arg =

@@ -1,6 +1,11 @@
 open Core
 
-type t = { frontmatter : Ezjsonm.t option; markdown : Omd.doc; slug : Slug.t }
+type t = {
+  frontmatter : Ezjsonm.t option;
+  content : string;
+  markdown : Omd.doc;
+  slug : Slug.t;
+}
 
 let build ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
@@ -9,7 +14,7 @@ let build ?(tags = []) ?(content = "") ~title slug =
          [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ])
   in
   let markdown = Omd.of_string content in
-  { frontmatter; markdown; slug }
+  { frontmatter; content; markdown; slug }
 
 let rec title_of_markdown (blocks : Omd.block list) : string =
   match blocks with
@@ -83,7 +88,6 @@ let get_data t =
   let data = extract_structured_data [] t.markdown in
   Ezjsonm.list (fun value -> value) data
 
-(* TODO: fix html conversion *)
 let to_json t =
   let frontmatter =
     match t.frontmatter with
@@ -93,7 +97,7 @@ let to_json t =
   Ezjsonm.dict
     [
       ("frontmatter", frontmatter);
-      ("content", Ezjsonm.string (Omd.to_html t.markdown));
+      ("content", Ezjsonm.string t.content);
       ("data", get_data t);
     ]
 
@@ -105,11 +109,13 @@ let to_string t =
         [ "---"; front_matter; "---"; Omd.to_html t.markdown ]
   | None -> Omd.to_html t.markdown
 
-let of_string ~data slug =
-  let indexes = String.substr_index_all ~may_overlap:true ~pattern:"---" data in
+let of_string ~content slug =
+  let indexes =
+    String.substr_index_all ~may_overlap:true ~pattern:"---" content
+  in
   if List.length indexes >= 2 then
     let meta_str =
-      String.slice data (List.nth_exn indexes 0 + 3) (List.nth_exn indexes 1)
+      String.slice content (List.nth_exn indexes 0 + 3) (List.nth_exn indexes 1)
     in
     let frontmatter : Ezjsonm.t =
       match Yaml.of_string_exn meta_str with
@@ -122,14 +128,16 @@ let of_string ~data slug =
     in
     let markdown : Omd.doc =
       Omd.of_string
-        (String.slice data (List.nth_exn indexes 1 + 3) (String.length data))
+        (String.slice content
+           (List.nth_exn indexes 1 + 3)
+           (String.length content))
     in
     let frontmatter = Some frontmatter in
-    { frontmatter; markdown; slug }
+    { frontmatter; content; markdown; slug }
   else
     let frontmatter = None in
-    let markdown = Omd.of_string data in
-    { frontmatter; markdown; slug }
+    let markdown = Omd.of_string content in
+    { frontmatter; content; markdown; slug }
 
 module Util = struct
   let split_words str =
