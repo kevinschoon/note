@@ -1,11 +1,19 @@
 open Core
 
-type t = {
+type operator = And | Or
+
+and term = {
+  title : Re.Str.regexp option;
+  tags : Re.Str.regexp list;
+  operator : operator;
+}
+
+and note = {
   frontmatter : Ezjsonm.t;
   content : string;
   markdown : Omd.doc;
   slug : Slug.t;
-  parent : Slug.t option;
+  parent : term option;
 }
 
 let build ?(description = "") ?(tags = []) ?(content = "") ~title slug =
@@ -133,61 +141,39 @@ module Encoding = struct
     | `Html -> Omd.to_html t.markdown
 end
 
-module Search = struct
-  open Re.Str
-
-  let dump_results results =
-    List.iter
-      ~f:(fun result ->
-        print_endline (sprintf "%s - %d" (get_title (snd result)) (fst result)))
-      results
-
-  let title expr note =
-    let title_string = get_title note in
-    string_match expr title_string 0
-
-  let tags expr note =
-    let tags = get_tags note in
-    List.count ~f:(fun tag -> string_match expr tag 0) tags > 0
-
-  let content expr note =
-    let words = Util.to_words [] note.markdown in
-    List.count ~f:(fun word -> string_match expr word 0) words > 0
-
-  let match_and_rank ~args notes =
-    let expressions = List.map ~f:regexp args in
-    let matches =
-      List.fold ~init:[]
-        ~f:(fun accm note ->
-          let has_title =
-            List.count ~f:(fun expr -> title expr note) expressions > 0
+let find_many ~term notes =
+  let open Re.Str in
+  if Option.is_none term.title && List.length term.tags = 0 then notes
+  else
+    List.filter
+      ~f:(fun note ->
+        let has_title =
+          match term.title with
+          | Some title -> string_match title (get_title note) 0
+          | None -> false
+        in
+        let has_title = Option.is_none term.title || has_title in
+        let has_tags =
+          let result =
+            List.find
+              ~f:(fun expr ->
+                Option.is_some
+                  (List.find
+                     ~f:(fun tag -> string_match expr tag 0)
+                     (get_tags note)))
+              term.tags
           in
-          let has_tag =
-            List.count ~f:(fun expr -> tags expr note) expressions > 0
-          in
-          let has_content =
-            List.count ~f:(fun expr -> content expr note) expressions > 0
-          in
-          match (has_title, has_tag, has_content) with
-          | true, _, _ -> List.append accm [ (20, note) ]
-          | _, true, _ -> List.append accm [ (10, note) ]
-          | _, _, true -> List.append accm [ (5, note) ]
-          | false, false, false -> accm)
-        notes
-    in
-    List.rev (List.sort ~compare:(fun n1 n2 -> fst n1 - fst n2) matches)
+          Option.is_some result
+        in
+        let has_tags = List.length term.tags = 0 || has_tags in
+        match term.operator with
+        | Or -> has_title || has_tags
+        | And -> has_title && has_tags)
+      notes
 
-  let find_one ~args notes =
-    let results = match_and_rank ~args notes in
-    let results = List.map ~f:snd results in
-    if List.length results = 0 then None else Some (List.hd_exn results)
-
-  let find_many ~args notes =
-    if List.length args = 0 then notes
-    else
-      let results = match_and_rank ~args notes in
-      List.map ~f:snd results
-end
+let find_one ~term notes =
+  let results = find_many ~term notes in
+  match List.length results with 0 -> None | _ -> Some (List.hd_exn results)
 
 open ANSITerminal
 

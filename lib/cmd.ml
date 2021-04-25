@@ -9,18 +9,20 @@ let get_notes =
       Note.of_string ~content slug)
     (Slug.load cfg.state_dir)
 
-let filter_arg =
+let to_keys ~kind notes =
+  match kind with
+  | `Title -> List.map ~f:Note.get_title notes
+  | `Tags -> List.concat (List.map ~f:Note.get_tags notes)
+
+let search_arg kind =
   Command.Arg_type.create
     ~complete:(fun _ ~part ->
       let notes = get_notes in
       List.filter_map
-        ~f:(fun note ->
-          let title = Note.get_title note in
-          if String.equal part "" then Some title
-          else if String.is_substring ~substring:part title then Some title
-          else None)
-        notes)
-    (fun filter -> filter)
+        ~f:(fun key ->
+          if String.is_substring ~substring:part key then Some key else None)
+        (to_keys ~kind notes))
+    (fun filter -> Re.Str.regexp filter)
 
 let key_arg =
   Command.Arg_type.create
@@ -30,6 +32,8 @@ let key_arg =
         ~f:(fun key -> String.is_substring ~substring:part key)
         string_keys)
     Config.Key.of_string
+
+let flag_to_op state = match state with true -> Note.And | false -> Note.Or
 
 let column_list_arg =
   Command.Arg_type.create (fun value ->
@@ -57,6 +61,20 @@ let list_style_arg =
         string_keys)
     Config.ListStyle.of_string
 
+let filter_args =
+  let open Command.Let_syntax in
+  [%map_open
+    let title =
+      flag "title"
+        (optional (search_arg `Title))
+        ~doc:"regular expression matching the note title"
+    and tags =
+      flag "tag"
+        (listed (search_arg `Tags))
+        ~doc:"sequence of regular expressions matching note tags"
+    and operator = flag "and" no_arg ~doc:"logical AND instead of default OR" in
+    (title, tags, operator)]
+
 (*
  * commands
  *)
@@ -71,15 +89,18 @@ note to stdout as plain text however the encoding can be adjusted to yaml or
 json for consumption by other tools.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg))
+      let title, tags, operator = filter_args
       and encoding =
         flag "encoding"
           (optional_with_default cfg.encoding encoding_arg)
           ~doc:"format [json | yaml | raw] (default: raw)"
       in
       fun () ->
-        let open Note.Search in
-        let notes = find_many ~args:filter_args get_notes in
+        let notes =
+          Note.find_many
+            ~term:{ title; tags; operator = flag_to_op operator }
+            get_notes
+        in
         List.iter
           ~f:(fun note ->
             print_endline (Note.Encoding.to_string ~style:encoding note))
@@ -142,11 +163,14 @@ let delete_note =
 Delete the first note that matches the filter criteria.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg)) in
+      let title, tags, operator = filter_args in
       fun () ->
-        let open Note.Search in
         let notes = get_notes in
-        let note = find_one ~args:filter_args notes in
+        let note =
+          Note.find_one
+            ~term:{ title; tags; operator = flag_to_op operator }
+            notes
+        in
         match note with
         | Some note ->
             Io.delete ~callback:cfg.on_modification ~title:(Note.get_title note)
@@ -161,10 +185,13 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg)) in
+      let title, tags, operator = filter_args in
       fun () ->
-        let open Note.Search in
-        let note = find_one ~args:filter_args get_notes in
+        let note =
+          Note.find_one
+            ~term:{ title; tags; operator = flag_to_op operator }
+            get_notes
+        in
         match note with
         | Some note ->
             Io.edit ~callback:cfg.on_modification ~editor:cfg.editor
@@ -180,7 +207,7 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let filter_args = anon (sequence ("filter" %: filter_arg))
+      let title, tags, operator = filter_args
       and style =
         flag "style"
           (optional_with_default cfg.list_style list_style_arg)
@@ -191,8 +218,11 @@ is provided then all notes will be listed.
           ~doc:"columns to include in output"
       in
       fun () ->
-        let open Note.Search in
-        let notes = find_many ~args:filter_args get_notes in
+        let notes =
+          Note.find_many
+            ~term:{ title; tags; operator = flag_to_op operator }
+            get_notes
+        in
         let styles = cfg.styles in
         let cells = Note.to_cells ~columns ~styles notes in
         Display.to_stdout ~style cells]
