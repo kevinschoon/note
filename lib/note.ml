@@ -3,7 +3,7 @@ open Core
 type operator = And | Or
 
 and term = {
-  title : Re.Str.regexp option;
+  titles : Re.Str.regexp list;
   tags : Re.Str.regexp list;
   operator : operator;
 }
@@ -143,19 +143,21 @@ end
 
 let find_many ~term notes =
   let open Re.Str in
-  if Option.is_none term.title && List.length term.tags = 0 then notes
+  let n_titles, n_tags = (List.length term.titles, List.length term.tags) in
+  if n_titles + n_tags = 0 then notes
   else
     List.filter
       ~f:(fun note ->
         let has_title =
-          match term.title with
-          | Some title -> string_match title (get_title note) 0
-          | None -> false
-        in
-        let has_title = Option.is_none term.title || has_title in
-        let has_tags =
           let result =
-            List.find
+            List.count
+              ~f:(fun expr -> string_match expr (get_title note) 0)
+              term.titles
+          in
+          match term.operator with Or -> result > 0 | And -> result = n_titles
+        and has_tags =
+          let result =
+            List.count
               ~f:(fun expr ->
                 Option.is_some
                   (List.find
@@ -163,9 +165,8 @@ let find_many ~term notes =
                      (get_tags note)))
               term.tags
           in
-          Option.is_some result
+          match term.operator with Or -> result > 0 | And -> result = n_tags
         in
-        let has_tags = List.length term.tags = 0 || has_tags in
         match term.operator with
         | Or -> has_title || has_tags
         | And -> has_title && has_tags)

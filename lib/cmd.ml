@@ -64,16 +64,16 @@ let list_style_arg =
 let filter_args =
   let open Command.Let_syntax in
   [%map_open
-    let title =
+    let titles =
       flag "title"
-        (optional (search_arg `Title))
+        (listed (search_arg `Title))
         ~doc:"regular expression matching the note title"
     and tags =
       flag "tag"
         (listed (search_arg `Tags))
         ~doc:"sequence of regular expressions matching note tags"
     and operator = flag "and" no_arg ~doc:"logical AND instead of default OR" in
-    (title, tags, operator)]
+    (titles, tags, operator)]
 
 (*
  * commands
@@ -89,7 +89,7 @@ note to stdout as plain text however the encoding can be adjusted to yaml or
 json for consumption by other tools.
 |})
     [%map_open
-      let title, tags, operator = filter_args
+      let titles, tags, operator = filter_args
       and encoding =
         flag "encoding"
           (optional_with_default cfg.encoding encoding_arg)
@@ -98,7 +98,7 @@ json for consumption by other tools.
       fun () ->
         let notes =
           Note.find_many
-            ~term:{ title; tags; operator = flag_to_op operator }
+            ~term:{ titles; tags; operator = flag_to_op operator }
             get_notes
         in
         List.iter
@@ -163,12 +163,12 @@ let delete_note =
 Delete the first note that matches the filter criteria.
 |})
     [%map_open
-      let title, tags, operator = filter_args in
+      let titles, tags, operator = filter_args in
       fun () ->
         let notes = get_notes in
         let note =
           Note.find_one
-            ~term:{ title; tags; operator = flag_to_op operator }
+            ~term:{ titles; tags; operator = flag_to_op operator }
             notes
         in
         match note with
@@ -185,11 +185,11 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let title, tags, operator = filter_args in
+      let titles, tags, operator = filter_args in
       fun () ->
         let note =
           Note.find_one
-            ~term:{ title; tags; operator = flag_to_op operator }
+            ~term:{ titles; tags; operator = flag_to_op operator }
             get_notes
         in
         match note with
@@ -207,7 +207,7 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let title, tags, operator = filter_args
+      let titles, tags, operator = filter_args
       and style =
         flag "style"
           (optional_with_default cfg.list_style list_style_arg)
@@ -220,7 +220,7 @@ is provided then all notes will be listed.
       fun () ->
         let notes =
           Note.find_many
-            ~term:{ title; tags; operator = flag_to_op operator }
+            ~term:{ titles; tags; operator = flag_to_op operator }
             get_notes
         in
         let styles = cfg.styles in

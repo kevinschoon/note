@@ -22,26 +22,47 @@ let test_filter_by_keys =
     Note.find_many
       ~term:
         {
-          title = None;
-          tags =
-            [ Re.Str.regexp "fuu"; Re.Str.regexp "bar"; Re.Str.regexp "baz" ];
+          titles = [ Re.Str.regexp "A Very Important Note" ];
+          tags = [];
           operator = Note.Or;
         }
       notes
   in
-  assert (List.length result = 3)
+  assert (List.length result = 1);
+  let result =
+    Note.find_many
+      ~term:
+        {
+          titles = [ Re.Str.regexp "A Very Important Note" ];
+          tags = [];
+          operator = Note.Or;
+        }
+      notes
+  in
+  assert (List.length result = 1);
+  let result =
+    Note.find_many
+      ~term:
+        {
+          titles = [];
+          tags =
+            [ Re.Str.regexp "fuu"; Re.Str.regexp "bar"; Re.Str.regexp "baz" ];
+          operator = Note.And;
+        }
+      notes
+  in
+  assert (List.length result = 2)
 
 let test_filter_by_title_find_one =
   let notes = make_notes in
   let result =
     Note.find_one
-      ~term:{ title = None; tags = [ Re.Str.regexp "fuu" ]; operator = Note.Or }
+      ~term:{ titles = [Re.Str.regexp "^A.*"]; tags = []; operator = Note.Or }
       notes
   in
   assert (Option.is_some result);
   let note = Option.get result in
-  (* title should take priority *)
-  assert (Note.get_title note = "fuu")
+  assert (Note.get_title note = "A Very Important Note")
 
 let () =
   test_filter_by_keys;
