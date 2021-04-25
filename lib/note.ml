@@ -1,68 +1,39 @@
 open Core
 
 type t = {
-  frontmatter : Ezjsonm.t option;
+  frontmatter : Ezjsonm.t;
   content : string;
   markdown : Omd.doc;
   slug : Slug.t;
+  parent : Slug.t option;
 }
 
-let build ?(tags = []) ?(content = "") ~title slug =
+let build ?(description = "") ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
-    Some
-      (Ezjsonm.dict
-         [ ("title", Ezjsonm.string title); ("tags", Ezjsonm.strings tags) ])
+    Ezjsonm.dict
+      [
+        ("title", Ezjsonm.string title);
+        ("description", Ezjsonm.string description);
+        ("tags", Ezjsonm.strings tags);
+      ]
   in
   let markdown = Omd.of_string content in
-  { frontmatter; content; markdown; slug }
-
-let rec title_of_markdown (blocks : Omd.block list) : string =
-  match blocks with
-  | [] -> ""
-  | hd :: tl -> (
-      match hd.bl_desc with
-      | Heading (_, content) -> (
-          match content.il_desc with
-          | Text text -> text
-          | _ -> title_of_markdown tl)
-      | Paragraph content -> (
-          match content.il_desc with
-          | Text text -> text
-          | _ -> title_of_markdown tl)
-      | _ -> "??")
+  { frontmatter; content; markdown; slug; parent = None }
 
 let get_title t =
-  let title =
-    match t.frontmatter with
-    | Some fm -> (
-        match Ezjsonm.find_opt (Ezjsonm.value fm) [ "title" ] with
-        | Some v -> Some (Ezjsonm.get_string v)
-        | None -> None)
-    | None -> None
-  in
-  match title with
-  | Some title -> title
-  (* Since we couldn't determine the title from frontmatter now we will
-     infer the title by looking at the markdown *)
-  | None -> title_of_markdown t.markdown
+  (* if title is specified use that, otherwise fall back to slug *)
+  match Ezjsonm.find_opt (Ezjsonm.value t.frontmatter) [ "title" ] with
+  | Some title -> Ezjsonm.get_string title
+  | None -> Slug.to_string t.slug
 
 let get_description t =
-  let description =
-    match t.frontmatter with
-    | Some fm -> (
-        match Ezjsonm.find_opt (Ezjsonm.value fm) [ "description" ] with
-        | Some v -> Some (Ezjsonm.get_string v)
-        | None -> None)
-    | None -> None
-  in
-  match description with Some description -> description | None -> ""
+  match Ezjsonm.find_opt (Ezjsonm.value t.frontmatter) [ "description" ] with
+  | Some description -> Ezjsonm.get_string description
+  | None -> ""
 
 let get_tags t =
-  match t.frontmatter with
-  | Some fm -> (
-      match Ezjsonm.find_opt (Ezjsonm.value fm) [ "tags" ] with
-      | Some v -> Ezjsonm.get_strings v
-      | None -> [])
+  match Ezjsonm.find_opt (Ezjsonm.value t.frontmatter) [ "tags" ] with
+  | Some tags -> Ezjsonm.get_strings tags
   | None -> []
 
 let get_path t = Slug.get_path t.slug
@@ -89,25 +60,16 @@ let get_data t =
   Ezjsonm.list (fun value -> value) data
 
 let to_json t =
-  let frontmatter =
-    match t.frontmatter with
-    | Some fm -> Ezjsonm.value fm
-    | None -> Ezjsonm.unit ()
-  in
   Ezjsonm.dict
     [
-      ("frontmatter", frontmatter);
+      ("frontmatter", Ezjsonm.value t.frontmatter);
       ("content", Ezjsonm.string t.content);
       ("data", get_data t);
     ]
 
 let to_string t =
-  match t.frontmatter with
-  | Some fm ->
-      let front_matter = Yaml.to_string_exn (Ezjsonm.value fm) in
-      String.concat ~sep:"\n"
-        [ "---"; front_matter; "---"; Omd.to_html t.markdown ]
-  | None -> Omd.to_html t.markdown
+  let yaml = Yaml.to_string_exn (Ezjsonm.value t.frontmatter) in
+  "\n---" ^ yaml ^ "\n---\n" ^ t.content
 
 let of_string ~content slug =
   let indexes =
@@ -132,12 +94,11 @@ let of_string ~content slug =
            (List.nth_exn indexes 1 + 3)
            (String.length content))
     in
-    let frontmatter = Some frontmatter in
-    { frontmatter; content; markdown; slug }
+    { frontmatter; content; markdown; slug; parent = None }
   else
-    let frontmatter = None in
+    let frontmatter = Ezjsonm.dict [] in
     let markdown = Omd.of_string content in
-    { frontmatter; content; markdown; slug }
+    { frontmatter; content; markdown; slug; parent = None }
 
 module Util = struct
   let split_words str =
@@ -155,6 +116,7 @@ module Util = struct
     match doc with
     | [] -> accm
     | hd :: tl -> (
+        (* TODO: account for headings, lists, etc *)
         match hd.bl_desc with
         | Paragraph inline ->
             let accm = accm @ split_words inline.il_desc in
