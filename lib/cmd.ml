@@ -90,6 +90,7 @@ json for consumption by other tools.
 |})
     [%map_open
       let titles, tags, operator = filter_args
+      and title = anon (sequence ("title" %: search_arg `Title))
       and encoding =
         flag "encoding"
           (optional_with_default cfg.encoding encoding_arg)
@@ -98,7 +99,12 @@ json for consumption by other tools.
       fun () ->
         let notes =
           Note.find_many
-            ~term:{ titles; tags; operator = flag_to_op operator }
+            ~term:
+              {
+                titles = List.append title titles;
+                tags;
+                operator = flag_to_op operator;
+              }
             get_notes
         in
         List.iter
@@ -163,12 +169,18 @@ let delete_note =
 Delete the first note that matches the filter criteria.
 |})
     [%map_open
-      let titles, tags, operator = filter_args in
+      let titles, tags, operator = filter_args
+      and title = anon (sequence ("title" %: search_arg `Title)) in
       fun () ->
         let notes = get_notes in
         let note =
           Note.find_one
-            ~term:{ titles; tags; operator = flag_to_op operator }
+            ~term:
+              {
+                titles = List.append title titles;
+                tags;
+                operator = flag_to_op operator;
+              }
             notes
         in
         match note with
@@ -185,11 +197,17 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let titles, tags, operator = filter_args in
+      let titles, tags, operator = filter_args
+      and title = anon (sequence ("title" %: search_arg `Title)) in
       fun () ->
         let note =
           Note.find_one
-            ~term:{ titles; tags; operator = flag_to_op operator }
+            ~term:
+              {
+                titles = List.append title titles;
+                tags;
+                operator = flag_to_op operator;
+              }
             get_notes
         in
         match note with
