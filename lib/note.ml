@@ -77,7 +77,7 @@ let to_json t =
 
 let to_string t =
   let yaml = Yaml.to_string_exn (Ezjsonm.value t.frontmatter) in
-  "\n---" ^ yaml ^ "\n---\n" ^ t.content
+  "\n---\n" ^ yaml ^ "\n---\n" ^ t.content
 
 let of_string ~content slug =
   let indexes =
