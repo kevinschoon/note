@@ -2,6 +2,12 @@ open Core
 
 type t = { path : string; date : Date.t; index : int }
 
+let compare s1 s2 =
+  String.compare s1.path s2.path
+
+let sexp_of_t t : Sexp.t =
+  List [ Atom t.path ]
+
 let get_path t = t.path
 
 let to_string t =

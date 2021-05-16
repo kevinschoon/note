@@ -16,6 +16,27 @@ and note = {
   parent : term option;
 }
 
+let operator_of_string = function
+  | "Or" -> Or
+  | "And" -> And
+  | _ -> failwith "invalid operator"
+
+let term_of_json json =
+  let titles =
+    match Ezjsonm.find_opt json [ "titles" ] with
+    | Some titles -> List.map ~f:Re.Str.regexp (Ezjsonm.get_strings titles)
+    | None -> []
+  and tags =
+    match Ezjsonm.find_opt json [ "tags" ] with
+    | Some tags -> List.map ~f:Re.Str.regexp (Ezjsonm.get_strings tags)
+    | None -> []
+  and operator =
+    match Ezjsonm.find_opt json [ "operator" ] with
+    | Some operator -> operator_of_string (Ezjsonm.get_string operator)
+    | None -> Or
+  in
+  { titles; tags; operator }
+
 let build ?(description = "") ?(tags = []) ?(content = "") ~title slug =
   let frontmatter =
     Ezjsonm.dict
@@ -96,13 +117,17 @@ let of_string ~content slug =
             "frontmatter is a partial fragment, should be either a dictionary \
              or list"
     in
+    let parent = Ezjsonm.find_opt (Ezjsonm.value frontmatter) [ "parent" ] in
+    let parent =
+      match parent with Some json -> Some (term_of_json json) | None -> None
+    in
     let markdown : Omd.doc =
       Omd.of_string
         (String.slice content
            (List.nth_exn indexes 1 + 3)
            (String.length content))
     in
-    { frontmatter; content; markdown; slug; parent = None }
+    { frontmatter; content; markdown; slug; parent }
   else
     let frontmatter = Ezjsonm.dict [] in
     let markdown = Omd.of_string content in
@@ -175,6 +200,48 @@ let find_many ~term notes =
 let find_one ~term notes =
   let results = find_many ~term notes in
   match List.length results with 0 -> None | _ -> Some (List.hd_exn results)
+
+let find_one_exn ~term notes =
+  let result = find_one ~term notes in
+  match result with
+  | Some result -> result
+  | None -> failwith "not found"
+
+(* TODO terrible performance but who cares? *)
+let resolve tree notes =
+  List.fold ~init:tree
+    ~f:(fun accm note ->
+      let slug_id = Slug.to_string note.slug in
+      match note.parent with
+      | Some term -> (
+          match find_one ~term notes with
+          | Some parent -> (
+              let parent_slug_id = Slug.to_string parent.slug in
+              let children =
+                List.Assoc.find ~equal:String.equal accm parent_slug_id
+              in
+              match children with
+              | Some children ->
+                  List.Assoc.add ~equal:String.equal accm parent_slug_id
+                    (List.append children [ slug_id ])
+              | None ->
+                  List.Assoc.add ~equal:String.equal accm parent_slug_id
+                    [ slug_id ])
+          | None -> failwith "cannot resolve parent")
+      | None ->
+          if List.Assoc.mem ~equal:String.equal accm slug_id then accm
+          else List.Assoc.add ~equal:String.equal accm slug_id [])
+    notes
+
+type node = Node of (note option * note list)
+
+let dump_tree notes =
+  let tree = resolve [] notes in
+  let tree = resolve tree notes in
+  List.iter
+    ~f:(fun (key, values) ->
+      print_endline (key ^ sprintf " -> %d" (List.length values)))
+    tree
 
 open ANSITerminal
 

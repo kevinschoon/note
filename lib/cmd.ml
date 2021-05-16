@@ -249,6 +249,13 @@ let sync =
   Command.basic ~summary:"sync notes to a remote server"
     (Command.Param.return (fun () -> Sync.sync cfg.on_sync))
 
+let tree =
+  Command.basic ~summary:"tree debug command"
+    (Command.Param.return (fun () ->
+         let notes = get_notes in
+         print_endline (sprintf "%d" (List.length notes));
+         Note.dump_tree notes))
+
 let version =
   match Build_info.V1.version () with
   | None -> "n/a"
@@ -268,4 +275,5 @@ let run =
          ("edit", edit_note);
          ("ls", list_notes);
          ("sync", sync);
+         ("tree", tree);
        ])
