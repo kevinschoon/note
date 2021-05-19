@@ -2,33 +2,26 @@ open Core
 
 type t = { path : string; date : Date.t; index : int }
 
-let compare s1 s2 =
-  String.compare s1.path s2.path
-
-let sexp_of_t t : Sexp.t =
-  List [ Atom t.path ]
-
-let get_path t = t.path
-
-let to_string t =
+let shortname t =
   let date_str = Date.format t.date "%Y%m%d" in
-  sprintf "%s-%d" date_str t.index
+  sprintf "note-%s-%d" date_str t.index
+
+let compare s1 s2 = String.compare s1.path s2.path
+
+let is_note path =
+  Filename.basename path |> String.is_substring ~substring:"note-"
 
 let of_path path =
-  (* note-20010103-0.md *)
-  if is_some (String.substr_index ~pattern:"note-" path) then
-    let slug = Filename.chop_extension (Filename.basename path) in
-    let split = String.split ~on:'-' slug in
-    (* TODO: add proper error handling *)
-    let date = Date.parse ~fmt:"%Y%m%d" (List.nth_exn split 1) in
-    let index = int_of_string (List.nth_exn split 2) in
-    Some { path; date; index }
-  else None
+  let slug = Filename.chop_extension (Filename.basename path) in
+  let split = String.split ~on:'-' slug in
+  let date = Date.parse ~fmt:"%Y%m%d" (List.nth_exn split 1) in
+  let index = int_of_string (List.nth_exn split 2) in
+  { path; date; index }
 
 let load state_dir =
-  List.filter_map
-    ~f:(fun path -> of_path (Filename.concat state_dir path))
-    (Sys.ls_dir state_dir)
+  state_dir |> Sys.ls_dir |> List.filter ~f:is_note
+  |> List.map ~f:(Filename.concat state_dir)
+  |> List.map ~f:of_path
 
 let next state_dir =
   let slugs = load state_dir in

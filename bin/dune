@@ -1,6 +1,8 @@
 (executable
  (public_name note)
  (name note)
- (libraries note_lib)
+ (preprocess
+  (pps ppx_jane))
+ (libraries note_lib base core dune-build-info)
  (modes exe)
  (ocamlopt_flags))

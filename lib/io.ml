@@ -4,7 +4,7 @@ let create ~callback ~content dest =
   Out_channel.write_all ~data:content dest;
   match callback with Some cmd -> Sys.command_exn cmd | None -> ()
 
-let create_on_change ~callback ~editor content dest =
+let create_on_change ~callback ~editor ~content dest =
   let tmp_file = Filename.temp_file "note" ".md" in
   Out_channel.write_all ~data:content tmp_file;
   let command = sprintf "%s %s" editor tmp_file in
@@ -37,3 +37,7 @@ let delete ~callback ~title path =
     else
     print_endline "No changes made"
   | None -> ()
+
+
+let read path =
+  In_channel.read_all path

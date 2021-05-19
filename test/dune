@@ -1,4 +1,4 @@
 (tests 
- (names e2e search)
- (libraries note_lib)
+ (names display_test note_test slug_test)
+ (libraries note_lib alcotest)
 )
