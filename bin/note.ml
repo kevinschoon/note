@@ -16,7 +16,7 @@ let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
   let title = note.frontmatter.title in
   let title = "[" ^ title ^ "]" in
-  Display.Tree.Tree (title, List.map ~f:convert_tree others)
+  Display.Tree (title, List.map ~f:convert_tree others)
 
 let get_notes =
   let notes = cfg.state_dir |> Note.load |> Note.flatten ~accm:[] in
@@ -234,7 +234,7 @@ is provided then all notes will be listed.
         in
         let styles = cfg.styles in
         let cells = Note.Util.to_cells ~columns ~styles notes in
-        Display.Cell.to_stdout ~style cells]
+        Display.to_stdout ~style cells]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"
@@ -243,7 +243,7 @@ let sync =
 let tree =
   Command.basic ~summary:"tree debug command"
     (Command.Param.return (fun () ->
-        cfg.state_dir |> Note.load |> convert_tree |> Display.Tree.to_string |> print_endline))
+        cfg.state_dir |> Note.load |> convert_tree |> Display.to_string |> print_endline))
 
 let version =
   match Build_info.V1.version () with

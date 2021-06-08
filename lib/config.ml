@@ -14,19 +14,21 @@ let config_path =
   | None -> Filename.concat base_xdg_config_path "/note/config.yaml"
 
 module ListStyle = struct
-  type t = [ `Fixed | `Wide | `Simple ]
+  type t = [ `Fixed | `Wide | `Simple | `Tree ]
 
-  let all = [ `Fixed; `Wide; `Simple ]
+  let all = [ `Fixed; `Wide; `Simple; `Tree ]
 
   let to_string = function
     | `Fixed -> "fixed"
     | `Wide -> "wide"
     | `Simple -> "simple"
+    | `Tree -> "tree"
 
   let of_string = function
     | "fixed" -> `Fixed
     | "wide" -> `Wide
     | "simple" -> `Simple
+    | "tree" -> `Tree
     | key -> failwith key
 end
 

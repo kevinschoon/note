@@ -1,7 +1,7 @@
 open Note_lib
 
 let test_tree () =
-  let open Display.Tree in
+  let open Display in
   let expected = {|
 A
 ├──B

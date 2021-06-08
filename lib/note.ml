@@ -267,16 +267,10 @@ let load path =
   | Some root -> notes |> resolve ~root:(Tree (root, []))
   | None -> notes |> resolve ~root:(Tree (of_string root_template, []))
 
+(* fancy output *)
+
 module Util = struct
   open ANSITerminal
-
-  let split_words str =
-    List.filter_map
-      ~f:(fun x ->
-        match String.strip ~drop:(fun x -> Char.equal x ' ') x with
-        | "" -> None
-        | _ -> Some x)
-      (String.split ~on:' ' str)
 
   let rec to_words (accm : string list) (doc : Omd.doc) : string list =
     let split_words inline =
