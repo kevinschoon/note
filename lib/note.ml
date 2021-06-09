@@ -21,6 +21,12 @@ module Term = struct
 
   let empty = { title = []; description = []; tags = [] }
 
+  let is_empty term =
+    [ term.title; term.description; term.tags ]
+    |> List.fold ~init:[] ~f:(fun accm items ->
+           match items |> List.length with 0 -> accm | _ -> items)
+    |> List.length = 0
+
   let of_json json =
     let title =
       match Ezjsonm.find_opt json [ "title" ] with
@@ -187,6 +193,10 @@ let match_term ?(operator = Operator.Or) ~(term : Term.t) note =
         List.length (List.filter ~f:(fun v -> v) results) = List.length results
     | Or -> List.length (List.filter ~f:(fun v -> v) results) > 0
 
+let match_tree ?(operator = Operator.Or) ~(term : Term.t) tree =
+  let (Tree (note, _)) = tree in
+  note |> match_term ~operator ~term
+
 let rec find_many ?(operator = Operator.Or) ~(term : Term.t) ~notes tree =
   let (Tree (note, others)) = tree in
   let notes =
@@ -194,6 +204,15 @@ let rec find_many ?(operator = Operator.Or) ~(term : Term.t) ~notes tree =
   in
   List.fold ~init:notes
     ~f:(fun accm note -> find_many ~operator ~term ~notes:accm note)
+    others
+
+let rec find_many_tree ?(operator = Operator.Or) ~(term : Term.t) ~trees tree =
+  let (Tree (_, others)) = tree in
+  let trees =
+    if match_tree ~operator ~term tree then tree :: trees else trees
+  in
+  List.fold ~init:trees
+    ~f:(fun accm tree -> find_many_tree ~operator ~term ~trees:accm tree)
     others
 
 let find_one ?(operator = Operator.Or) ~(term : Term.t) tree =
@@ -249,112 +268,26 @@ let rec resolve ~root notes =
   let tree, buf = buf_insert ~root notes in
   match buf |> List.length with 0 -> tree | _ -> resolve ~root:tree buf
 
-let load path =
+let load ~context path =
   let notes =
     path |> Slug.load
     |> List.map ~f:(fun slug ->
            slug.path |> In_channel.read_all |> of_string ~slug:(Some slug))
   in
   (* check if a "root" note is defined *)
-  match
-    List.find
-      ~f:(fun note ->
-        note
-        |> match_term
-             ~term:{ title = [ "__root" ]; description = []; tags = [] })
-      notes
-  with
-  | Some root -> notes |> resolve ~root:(Tree (root, []))
-  | None -> notes |> resolve ~root:(Tree (of_string root_template, []))
-
-(* fancy output *)
-
-module Util = struct
-  open ANSITerminal
-
-  let rec to_words (accm : string list) (doc : Omd.doc) : string list =
-    let split_words inline =
-      match inline with Omd.Text text -> String.split ~on:' ' text | _ -> []
-    in
-    match doc with
-    | [] -> accm
-    | hd :: tl -> (
-        (* TODO: account for headings, lists, etc *)
-        match hd.bl_desc with
-        | Paragraph inline ->
-            let accm = accm @ split_words inline.il_desc in
-            to_words accm tl
-        | _ -> to_words accm tl)
-
-  let paint_tag (styles : Config.StylePair.t list) text : string =
+  let tree =
     match
-      List.find ~f:(fun entry -> String.equal entry.pattern text) styles
-    with
-    | Some entry -> sprintf entry.styles "%s" text
-    | None -> sprintf [ Foreground Default ] "%s" text
-
-  let to_cells ~columns ~styles (notes : note list) =
-    let header =
-      List.map
-        ~f:(fun column ->
-          let text_value = Config.Column.to_string column in
-          let text_length = String.length text_value in
-          let text_value = sprintf [ Bold; Underlined ] "%s" text_value in
-          (text_value, text_length, 1))
-        columns
-    in
-    let note_cells =
-      let default_padding = 1 in
-      List.fold ~init:[]
-        ~f:(fun accm note ->
-          accm
-          @ [
-              List.map
-                ~f:(fun column ->
-                  match column with
-                  | `Title ->
-                      let text_value = note.frontmatter.title in
-                      (text_value, String.length text_value, default_padding)
-                  | `Description ->
-                      let text_value = note.frontmatter.description in
-                      (text_value, String.length text_value, default_padding)
-                  | `Slug ->
-                      let text_value =
-                        match note.slug with
-                        | Some slug -> slug |> Slug.shortname
-                        | None -> "??"
-                      in
-                      (text_value, String.length text_value, default_padding)
-                  | `Tags ->
-                      let text_value =
-                        String.concat ~sep:"|" note.frontmatter.tags
-                      in
-                      let text_length = String.length text_value in
-                      let tags = note.frontmatter.tags in
-                      let tags =
-                        List.map ~f:(fun tag -> paint_tag styles tag) tags
-                      in
-                      let text_value = String.concat ~sep:"|" tags in
-                      (text_value, text_length, default_padding)
-                  | `WordCount ->
-                      let text_value =
-                        Core.sprintf "%d"
-                          (List.length
-                             (to_words [] (note.content |> Omd.of_string)))
-                      in
-                      (text_value, String.length text_value, default_padding))
-                columns;
-            ])
+      List.find
+        ~f:(fun note ->
+          note
+          |> match_term
+               ~term:{ title = [ "__root" ]; description = []; tags = [] })
         notes
-    in
-    [ header ] @ note_cells
-end
-
-module Encoding = struct
-  let to_string ~style t =
-    match style with
-    | `Raw -> t.content
-    | `Json -> Ezjsonm.to_string (to_json t)
-    | `Yaml -> Yaml.to_string_exn (to_json t)
-    | `Html -> t.content |> Omd.of_string |> Omd.to_html
-end
+    with
+    | Some root -> notes |> resolve ~root:(Tree (root, []))
+    | None -> notes |> resolve ~root:(Tree (of_string root_template, []))
+  in
+  if Term.is_empty context then tree
+  else
+    let root = find_many_tree ~term:context ~trees:[] tree |> List.hd_exn in
+    root

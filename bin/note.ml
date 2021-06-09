@@ -1,7 +1,98 @@
 open Core
 open Note_lib
 
-let cfg = Config.load
+let cfg = Config.config_path |> Config.load
+let context = cfg.context
+
+module Util = struct
+  open ANSITerminal
+
+  let rec to_words (accm : string list) (doc : Omd.doc) : string list =
+    let split_words inline =
+      match inline with Omd.Text text -> String.split ~on:' ' text | _ -> []
+    in
+    match doc with
+    | [] -> accm
+    | hd :: tl -> (
+        (* TODO: account for headings, lists, etc *)
+        match hd.bl_desc with
+        | Paragraph inline ->
+            let accm = accm @ split_words inline.il_desc in
+            to_words accm tl
+        | _ -> to_words accm tl)
+
+  let paint_tag (styles : Config.StylePair.t list) text : string =
+    match
+      List.find ~f:(fun entry -> String.equal entry.pattern text) styles
+    with
+    | Some entry -> sprintf entry.styles "%s" text
+    | None -> sprintf [ Foreground Default ] "%s" text
+
+  let to_cells ~columns ~styles (notes : Note.note list) =
+    let header =
+      List.map
+        ~f:(fun column ->
+          let text_value = Config.Column.to_string column in
+          let text_length = String.length text_value in
+          let text_value = sprintf [ Bold; Underlined ] "%s" text_value in
+          (text_value, text_length, 1))
+        columns
+    in
+    let note_cells =
+      let default_padding = 1 in
+      List.fold ~init:[]
+        ~f:(fun accm note ->
+          accm
+          @ [
+              List.map
+                ~f:(fun column ->
+                  match column with
+                  | `Title ->
+                      let text_value = note.frontmatter.title in
+                      (text_value, String.length text_value, default_padding)
+                  | `Description ->
+                      let text_value = note.frontmatter.description in
+                      (text_value, String.length text_value, default_padding)
+                  | `Slug ->
+                      let text_value =
+                        match note.slug with
+                        | Some slug -> slug |> Slug.shortname
+                        | None -> "??"
+                      in
+                      (text_value, String.length text_value, default_padding)
+                  | `Tags ->
+                      let text_value =
+                        String.concat ~sep:"|" note.frontmatter.tags
+                      in
+                      let text_length = String.length text_value in
+                      let tags = note.frontmatter.tags in
+                      let tags =
+                        List.map ~f:(fun tag -> paint_tag styles tag) tags
+                      in
+                      let text_value = String.concat ~sep:"|" tags in
+                      (text_value, text_length, default_padding)
+                  | `WordCount ->
+                      let text_value =
+                        Core.sprintf "%d"
+                          (List.length
+                             (to_words [] (note.content |> Omd.of_string)))
+                      in
+                      (text_value, String.length text_value, default_padding))
+                columns;
+            ])
+        notes
+    in
+    [ header ] @ note_cells
+end
+
+module Encoding = struct
+  let to_string ~style (note : Note.note) =
+    match style with
+    | `Raw -> note.content
+    | `Json -> Ezjsonm.to_string (Note.to_json note)
+    | `Yaml -> Yaml.to_string_exn (Note.to_json note)
+    | `Html -> note.content |> Omd.of_string |> Omd.to_html
+end
 
 let note_of_title title =
   sprintf {|
@@ -19,7 +110,7 @@ let rec convert_tree tree =
   Display.Tree (title, List.map ~f:convert_tree others)
 
 let get_notes =
-  let notes = cfg.state_dir |> Note.load |> Note.flatten ~accm:[] in
+  let notes = cfg.state_dir |> Note.load ~context |> Note.flatten ~accm:[] in
   notes
 
 let get_title (note : Note.note) = note.frontmatter.title
@@ -116,11 +207,11 @@ json for consumption by other tools.
       in
       fun () ->
         let notes =
-          cfg.state_dir |> Note.load |> Note.find_many ~term ~notes:[]
+          cfg.state_dir |> Note.load ~context |> Note.find_many ~term ~notes:[]
         in
         List.iter
           ~f:(fun note ->
-            print_endline (Note.Encoding.to_string ~style:encoding note))
+            print_endline (Encoding.to_string ~style:encoding note))
           notes]
 
 let config_show =
@@ -169,8 +260,8 @@ on_modification callback will be invoked if the file is committed to disk.
                  ~content:(Note.to_string note)
         | None ->
             let content = title |> note_of_title |> Note.to_string in
-            Io.create_on_change ~callback:cfg.on_modification
-                 ~editor:cfg.editor ~content slug.path]
+            Io.create_on_change ~callback:cfg.on_modification ~editor:cfg.editor
+              ~content slug.path]
 
 let delete_note =
   let open Command.Let_syntax in
@@ -182,7 +273,7 @@ Delete the first note that matches the filter criteria.
     [%map_open
       let term = term_args in
       fun () ->
-        let note = cfg.state_dir |> Note.load |> Note.find_one ~term in
+        let note = cfg.state_dir |> Note.load ~context |> Note.find_one ~term in
         match note with
         | Some note ->
             (Option.value_exn note.slug).path
@@ -200,7 +291,7 @@ Select a note that matches the filter criteria and open it in your text editor.
     [%map_open
       let term = term_args in
       fun () ->
-        let note = cfg.state_dir |> Note.load |> Note.find_one ~term in
+        let note = cfg.state_dir |> Note.load ~context |> Note.find_one ~term in
         match note with
         | Some note ->
             (Option.value_exn note.slug).path
@@ -227,13 +318,9 @@ is provided then all notes will be listed.
           ~doc:"columns to include in output"
       in
       fun () ->
-        let notes =
-          Note.find_many
-            ~term
-            ~notes:[] (Note.load cfg.state_dir)
-        in
+        let notes = Note.find_many ~term ~notes:[] (Note.load ~context cfg.state_dir) in
         let styles = cfg.styles in
-        let cells = Note.Util.to_cells ~columns ~styles notes in
+        let cells = Util.to_cells ~columns ~styles notes in
         Display.to_stdout ~style cells]
 
 let sync =
@@ -243,7 +330,8 @@ let sync =
 let tree =
   Command.basic ~summary:"tree debug command"
     (Command.Param.return (fun () ->
-        cfg.state_dir |> Note.load |> convert_tree |> Display.to_string |> print_endline))
+         cfg.state_dir |> Note.load ~context |> convert_tree |> Display.to_string
+         |> print_endline))
 
 let version =
   match Build_info.V1.version () with

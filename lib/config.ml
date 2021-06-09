@@ -160,7 +160,8 @@ module Key = struct
     | `ListStyle
     | `Encoding
     | `ColumnList
-    | `Styles ]
+    | `Styles
+    | `Context ]
 
   let all =
     [
@@ -173,6 +174,7 @@ module Key = struct
       `Encoding;
       `ColumnList;
       `Styles;
+      `Context;
     ]
 
   let of_string = function
@@ -185,6 +187,7 @@ module Key = struct
     | "encoding" -> `Encoding
     | "column_list" -> `ColumnList
     | "styles" -> `Styles
+    | "context" -> `Context
     | key -> failwith (sprintf "bad configuration key %s" key)
 
   let to_string = function
@@ -197,6 +200,7 @@ module Key = struct
     | `Encoding -> "encoding"
     | `ColumnList -> "column_list"
     | `Styles -> "styles"
+    | `Context -> "context"
 end
 
 type t = {
@@ -209,6 +213,7 @@ type t = {
   encoding : Encoding.t;
   column_list : Column.t list;
   styles : StylePair.t list;
+  context : Note.Term.t;
 }
 
 let of_string str =
@@ -250,6 +255,10 @@ let of_string str =
     match Ezjsonm.find_opt json [ Key.to_string `Styles ] with
     | Some values -> StylePair.of_json values
     | None -> []
+  and context =
+    match Ezjsonm.find_opt json [ Key.to_string `Context ] with
+    | Some value -> Note.Term.of_json value
+    | None -> { title = []; description = []; tags = [] }
   in
   {
     state_dir;
@@ -261,6 +270,7 @@ let of_string str =
     encoding;
     column_list;
     styles;
+    context;
   }
 
 let to_string t =
@@ -277,7 +287,8 @@ let to_string t =
   and list_style = Ezjsonm.string (ListStyle.to_string t.list_style)
   and encoding = Ezjsonm.string (Encoding.to_string t.encoding)
   and column_list = Ezjsonm.strings (List.map ~f:Column.to_string t.column_list)
-  and styles = StylePair.to_json t.styles in
+  and styles = StylePair.to_json t.styles
+  and context = Note.Term.to_json t.context in
   Yaml.to_string_exn
     (Ezjsonm.dict
        [
@@ -290,6 +301,7 @@ let to_string t =
          (Key.to_string `Encoding, encoding);
          (Key.to_string `ColumnList, column_list);
          (Key.to_string `Styles, Ezjsonm.list noop styles);
+         (Key.to_string `Context, context);
        ])
 
 let get t key =
@@ -306,6 +318,7 @@ let get t key =
       String.concat ~sep:" " (List.map ~f:Column.to_string t.column_list)
   | `Styles ->
       Ezjsonm.to_string (Ezjsonm.list noop (StylePair.to_json t.styles))
+  | `Context -> t.context |> Note.Term.to_json |> Ezjsonm.to_string
 
 let set t key value =
   match key with
@@ -328,16 +341,18 @@ let set t key value =
   | `Styles ->
       let styles = StylePair.of_json (Yaml.of_string_exn value) in
       { t with styles }
+  | `Context ->
+      let context = value |> Ezjsonm.from_string |> Note.Term.of_json in
+      { t with context }
 
-let load =
+let load path =
   let cfg =
-    match Sys.file_exists config_path with
-    | `Yes -> of_string (In_channel.read_all config_path)
+    match Sys.file_exists path with
+    | `Yes -> of_string (In_channel.read_all path)
     | `No | `Unknown ->
-        Unix.mkdir_p (Filename.dirname config_path);
-        Out_channel.write_all config_path
-          ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
-        of_string (In_channel.read_all config_path)
+        Unix.mkdir_p (Filename.dirname path);
+        Out_channel.write_all path ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
+        of_string (In_channel.read_all path)
   in
 
   (* intiailize the state directory if it is missing *)
