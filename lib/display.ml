@@ -1,107 +1,199 @@
 open Core
 open ANSITerminal
 
-type tree = Tree of (string * tree list)
-
 type cell = string * int * int
 
-type row = cell list
+and row = cell list
 
-let fill ~last ~state =
-  let get_padding = function true -> "│  " | false -> "   " in
-  let get_edge = function true -> "└──" | false -> "├──" in
-  match List.length state with
-  | 0 -> []
-  | 1 -> [ last |> get_edge ]
-  | len ->
-      let state = List.slice state 0 (len - 1) in
-      let padding = List.map ~f:get_padding state in
-      List.append padding [ last |> get_edge ]
+let rec to_words (accm : string list) (doc : Omd.doc) : string list =
+  let split_words inline =
+    match inline with Omd.Text text -> String.split ~on:' ' text | _ -> []
+  in
+  match doc with
+  | [] -> accm
+  | hd :: tl -> (
+      (* TODO: account for headings, lists, etc *)
+      match hd.bl_desc with
+      | Paragraph inline ->
+          let accm = accm @ split_words inline.il_desc in
+          to_words accm tl
+      | _ -> to_words accm tl)
 
-let rec to_lines ?(state = []) ?(last = false) next =
-  let (Tree next) = next in
-  let title, children = next in
-  match List.length children with
-  | 0 ->
-      (* leaf *)
-      List.append (fill ~last ~state) [ title; "\n" ]
-  | n_children ->
-      (* node *)
-      List.foldi
-        ~init:
-          [ List.append (fill ~last ~state) [ title; "\n" ] |> String.concat ]
-        ~f:(fun i accm node ->
-          let is_last = Int.equal i (n_children - 1) in
-          let state = List.append state [ phys_equal is_last false ] in
-          let lines = to_lines ~state ~last:is_last node in
-          List.append accm lines)
-        children
+let paint_tag (styles : Config.StylePair.t list) text : string =
+  match List.find ~f:(fun entry -> String.equal entry.pattern text) styles with
+  | Some entry -> sprintf entry.styles "%s" text
+  | None -> sprintf [ Foreground Default ] "%s" text
 
-let to_string t =
-  let result = t |> to_lines |> String.concat in
-  "\n" ^ result
+let to_cells ?(paint = false) ~columns ~styles (notes : Note.note list) =
+  let header =
+    List.map
+      ~f:(fun column ->
+        let text_value = Config.Column.to_string column in
+        let text_length = String.length text_value in
+        let text_value =
+          if paint then sprintf [ Bold; Underlined ] "%s" text_value
+          else text_value
+        in
+        (text_value, text_length, 1))
+      columns
+  in
+  let note_cells =
+    let default_padding = 1 in
+    List.fold ~init:[]
+      ~f:(fun accm note ->
+        accm
+        @ [
+            List.map
+              ~f:(fun column ->
+                match column with
+                | `Title ->
+                    let text_value = note.frontmatter.title in
+                    (text_value, String.length text_value, default_padding)
+                | `Description ->
+                    let text_value = note.frontmatter.description in
+                    (text_value, String.length text_value, default_padding)
+                | `Slug ->
+                    let text_value =
+                      match note.slug with
+                      | Some slug -> slug |> Slug.shortname
+                      | None -> "??"
+                    in
+                    (text_value, String.length text_value, default_padding)
+                | `Tags ->
+                    let text_value =
+                      String.concat ~sep:"|" note.frontmatter.tags
+                    in
+                    let text_length = String.length text_value in
+                    let tags = note.frontmatter.tags in
+                    let tags =
+                      if paint then
+                        List.map ~f:(fun tag -> paint_tag styles tag) tags
+                      else tags
+                    in
+                    let text_value = String.concat ~sep:"|" tags in
+                    (text_value, text_length, default_padding)
+                | `WordCount ->
+                    let text_value =
+                      Core.sprintf "%d"
+                        (List.length
+                           (to_words [] (note.content |> Omd.of_string)))
+                    in
+                    (text_value, String.length text_value, default_padding))
+              columns;
+          ])
+      notes
+  in
+  [ header ] @ note_cells
 
-let fixed_spacing cells =
-  (* find the maximum cell length per column *)
-  let maximum_values =
+module Tabular = struct
+  let fixed cells =
+    (* find the maximum cell length per column *)
+    let maximum_values =
+      List.fold ~init:[]
+        ~f:(fun accm row ->
+          List.mapi
+            ~f:(fun i col ->
+              let col_length = snd3 col in
+              let current_max =
+                match List.nth accm i with Some len -> len | None -> 0
+              in
+              if col_length > current_max then col_length + 2 else current_max)
+            row)
+        cells
+    in
+    maximum_values
+
+  let fixed_right cells =
+    let widths = cells |> fixed in
+    let term_width, _ = size () in
+    let _, right = List.split_n widths 1 in
+    let col_one = List.nth_exn widths 0 in
+    [ col_one + (term_width - List.fold ~init:5 ~f:( + ) widths) ] @ right
+
+  let apply ~widths cells =
+    (* let maximums = fixed_spacing cells in *)
+    let cells =
+      List.map
+        ~f:(fun row ->
+          List.mapi
+            ~f:(fun i entry ->
+              let max = List.nth_exn widths i in
+              let text, length, padding = entry in
+              let padding = padding + (max - length) in
+              let padding = if padding > 0 then padding else 0 in
+              (text, length, padding))
+            row)
+        cells
+    in
     List.fold ~init:[]
       ~f:(fun accm row ->
-        List.mapi
-          ~f:(fun i col ->
-            let col_length = snd3 col in
-            let current_max =
-              match List.nth accm i with Some len -> len | None -> 0
-            in
-            if col_length > current_max then col_length + 2 else current_max)
-          row)
+        accm
+        @ [
+            List.fold ~init:""
+              ~f:(fun accm cell ->
+                let text, _, padding = cell in
+                String.concat [ accm; text; String.make padding ' ' ])
+              row;
+          ])
       cells
-  in
-  maximum_values
 
-let fix_right cells =
-  let widths = fixed_spacing cells in
-  let term_width, _ = size () in
-  let _, right = List.split_n widths 1 in
-  let col_one = List.nth_exn widths 0 in
-  [ col_one + (term_width - List.fold ~init:5 ~f:( + ) widths) ] @ right
+  let to_string ~style (cells : row list) =
+    match style with
+    | `Simple ->
+        let lines =
+          List.slice
+            (cells |> List.map ~f:(fun row -> row |> List.hd_exn |> fst3))
+            1 0
+          |> String.concat ~sep:"\n"
+        in
+        "\n" ^ lines ^ "\n"
+    | `Fixed ->
+        let lines =
+          apply ~widths:(cells |> fixed) cells |> String.concat ~sep:"\n"
+        in
+        "\n" ^ lines ^ "\n"
+    | `Wide ->
+        let lines =
+          apply ~widths:(cells |> fixed_right) cells |> String.concat ~sep:"\n"
+        in
+        "\n" ^ lines ^ "\n"
+    | `Tree -> failwith "not implemented"
+end
 
-let apply cells widths =
-  (* let maximums = fixed_spacing cells in *)
-  let cells =
-    List.map
-      ~f:(fun row ->
-        List.mapi
-          ~f:(fun i entry ->
-            let max = List.nth_exn widths i in
-            let text, length, padding = entry in
-            let padding = padding + (max - length) in
-            let padding = if padding > 0 then padding else 0 in
-            (text, length, padding))
-          row)
-      cells
-  in
-  List.fold ~init:[]
-    ~f:(fun accm row ->
-      accm
-      @ [
-          List.fold ~init:""
-            ~f:(fun accm cell ->
-              let text, _, padding = cell in
-              String.concat [ accm; text; String.make padding ' ' ])
-            row;
-        ])
-    cells
+module Hierarchical = struct
+  type tree = Tree of (string * tree list)
 
-let to_stdout ~style cells =
-  match style with
-  | `Simple ->
-      List.iter
-        ~f:(fun cell ->
-          print_endline
-            (let value = List.nth_exn cell 0 in
-             let text = fst3 value in
-             text))
-        cells
-  | `Fixed -> List.iter ~f:print_endline (apply cells (fixed_spacing cells))
-  | `Wide -> List.iter ~f:print_endline (apply cells (fix_right cells))
-  | `Tree -> failwith "unimplemented"
+  let get_padding = function true -> "│  " | false -> "   "
+
+  let get_edge = function true -> "└──" | false -> "├──"
+
+  let fill ~last ~state =
+    match List.length state with
+    | 0 -> []
+    | 1 -> [ last |> get_edge ]
+    | len ->
+        let state = List.slice state 0 (len - 1) in
+        let padding = List.map ~f:get_padding state in
+        List.append padding [ last |> get_edge ]
+
+  let rec to_lines ?(state = []) ?(last = false) next =
+    let (Tree next) = next in
+    let title, children = next in
+    match List.length children with
+    | 0 ->
+        (* leaf *)
+        List.append (fill ~last ~state) [ title; "\n" ]
+    | n_children ->
+        (* node *)
+        List.foldi
+          ~init:
+            [ List.append (fill ~last ~state) [ title; "\n" ] |> String.concat ]
+          ~f:(fun i accm node ->
+            let is_last = Int.equal i (n_children - 1) in
+            let state = List.append state [ phys_equal is_last false ] in
+            let lines = to_lines ~state ~last:is_last node in
+            List.append accm lines)
+          children
+
+  let to_string tree = "\n" ^ (tree |> to_lines |> String.concat)
+end

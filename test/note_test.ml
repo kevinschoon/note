@@ -8,7 +8,7 @@ let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
   let title = note.frontmatter.title in
   let title = "[" ^ title ^ "]" in
-  Display.Tree (title, List.map ~f:convert_tree others)
+  Display.Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
 let make_a_note () =
   let note =
@@ -124,7 +124,6 @@ let insert_at () =
   Alcotest.(check bool) "inserted" true (Option.is_some result)
 
 let test_structure () =
-  let open Display in
   let expected =
     {|
 [root]
@@ -140,7 +139,7 @@ let test_structure () =
 |}
   in
   Alcotest.(check int) "length" 9 (Note.length tree);
-  let note_tree = tree |> convert_tree |> to_string in
+  let note_tree = tree |> convert_tree |> Display.Hierarchical.to_string in
   Alcotest.(check string) "structure" expected note_tree
 
 (*
@@ -244,7 +243,7 @@ let test_resolve () =
   in
   let tree_as_string =
     [ n3; n2; n1; n0 ; n4] |> Note.resolve ~root |> convert_tree
-    |> Display.to_string
+    |> Display.Hierarchical.to_string
   in
   Alcotest.(check string) "resolve" expected tree_as_string
 

@@ -166,6 +166,14 @@ let rec flatten ~accm tree =
   let (Tree (note, others)) = tree in
   List.fold ~init:(note :: accm) ~f:(fun accm note -> flatten ~accm note) others
 
+let to_list tree =
+  let (Tree (_, others)) = tree in
+  List.fold ~init:[]
+    ~f:(fun accm tree ->
+      let (Tree (note, _)) = tree in
+      note :: accm)
+    others
+
 let match_term ?(operator = Operator.Or) ~(term : Term.t) note =
   let open Re.Str in
   let titles =
@@ -268,12 +276,7 @@ let rec resolve ~root notes =
   let tree, buf = buf_insert ~root notes in
   match buf |> List.length with 0 -> tree | _ -> resolve ~root:tree buf
 
-let load ~context path =
-  let notes =
-    path |> Slug.load
-    |> List.map ~f:(fun slug ->
-           slug.path |> In_channel.read_all |> of_string ~slug:(Some slug))
-  in
+let of_list ~context notes =
   (* check if a "root" note is defined *)
   let tree =
     match
@@ -291,3 +294,11 @@ let load ~context path =
   else
     let root = find_many_tree ~term:context ~trees:[] tree |> List.hd_exn in
     root
+
+let load ~context path =
+  let notes =
+    path |> Slug.load
+    |> List.map ~f:(fun slug ->
+           slug.path |> In_channel.read_all |> of_string ~slug:(Some slug))
+  in
+  of_list ~context notes

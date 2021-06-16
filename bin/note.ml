@@ -2,6 +2,7 @@ open Core
 open Note_lib
 
 let cfg = Config.config_path |> Config.load
+
 let context = cfg.context
 
 module Util = struct
@@ -107,7 +108,7 @@ let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
   let title = note.frontmatter.title in
   let title = "[" ^ title ^ "]" in
-  Display.Tree (title, List.map ~f:convert_tree others)
+  Display.Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
 let get_notes =
   let notes = cfg.state_dir |> Note.load ~context |> Note.flatten ~accm:[] in
@@ -307,7 +308,7 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let term = term_args
+      let _ = term_args
       and style =
         flag "style"
           (optional_with_default cfg.list_style list_style_arg)
@@ -318,10 +319,10 @@ is provided then all notes will be listed.
           ~doc:"columns to include in output"
       in
       fun () ->
-        let notes = Note.find_many ~term ~notes:[] (Note.load ~context cfg.state_dir) in
+        let notes = cfg.state_dir |> Note.load ~context |> Note.to_list in
         let styles = cfg.styles in
-        let cells = Util.to_cells ~columns ~styles notes in
-        Display.to_stdout ~style cells]
+        let cells = notes |> Display.to_cells ~paint:true ~columns ~styles in
+        cells |> Display.Tabular.to_string ~style |> print_endline]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"
@@ -330,8 +331,8 @@ let sync =
 let tree =
   Command.basic ~summary:"tree debug command"
     (Command.Param.return (fun () ->
-         cfg.state_dir |> Note.load ~context |> convert_tree |> Display.to_string
-         |> print_endline))
+         cfg.state_dir |> Note.load ~context |> convert_tree
+         |> Display.Hierarchical.to_string |> print_endline))
 
 let version =
   match Build_info.V1.version () with
