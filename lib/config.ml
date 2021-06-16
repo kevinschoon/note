@@ -132,20 +132,20 @@ module StylePair = struct
 end
 
 module Column = struct
-  type t = [ `Title | `Description | `Tags | `WordCount | `Slug ]
+  type t = [ `Title | `Description | `Tags | `LineCount | `Slug ]
 
   let to_string = function
     | `Title -> "title"
     | `Description -> "description"
     | `Tags -> "tags"
-    | `WordCount -> "words"
+    | `LineCount -> "lines"
     | `Slug -> "slug"
 
   let of_string = function
     | "title" -> `Title
     | "description" -> `Description
     | "tags" -> `Tags
-    | "words" -> `WordCount
+    | "lines" -> `LineCount
     | "slug" -> `Slug
     | key -> failwith (sprintf "unsupported column type: %s" key)
 end
@@ -250,7 +250,7 @@ let of_string str =
     match Ezjsonm.find_opt json [ Key.to_string `ColumnList ] with
     | Some column_list ->
         List.map ~f:Column.of_string (Ezjsonm.get_strings column_list)
-    | None -> [ `Title; `Tags; `WordCount; `Slug ]
+    | None -> [ `Title; `Tags; `LineCount; `Slug ]
   and styles =
     match Ezjsonm.find_opt json [ Key.to_string `Styles ] with
     | Some values -> StylePair.of_json values

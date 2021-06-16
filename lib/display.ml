@@ -72,12 +72,9 @@ let to_cells ?(paint = false) ~columns ~styles (notes : Note.note list) =
                     in
                     let text_value = String.concat ~sep:"|" tags in
                     (text_value, text_length, default_padding)
-                | `WordCount ->
-                    let text_value =
-                      Core.sprintf "%d"
-                        (List.length
-                           (to_words [] (note.content |> Omd.of_string)))
-                    in
+                | `LineCount ->
+                    let count = note.content |> String.split_lines |> List.length in
+                    let text_value = count |> Core.sprintf "%d" in
                     (text_value, String.length text_value, default_padding))
               columns;
           ])
