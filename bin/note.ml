@@ -238,20 +238,13 @@ is provided then all notes will be listed.
           ~doc:"columns to include in output"
       in
       fun () ->
-        let notes = cfg.state_dir |> Note.load ~context |> Note.to_list in
+        let notes = cfg.state_dir |> Note.load ~context in
         let styles = cfg.styles in
-        let cells = notes |> Display.to_cells ~paint:true ~columns ~styles in
-        cells |> Display.Tabular.to_string ~style |> print_endline]
+        notes |> Display.to_string ~style ~columns ~styles |> print_endline]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"
     (Command.Param.return (fun () -> Sync.sync cfg.on_sync))
-
-let tree =
-  Command.basic ~summary:"tree debug command"
-    (Command.Param.return (fun () ->
-         cfg.state_dir |> Note.load ~context |> convert_tree
-         |> Display.Hierarchical.to_string |> print_endline))
 
 let version =
   match Build_info.V1.version () with
@@ -272,5 +265,4 @@ let run =
          ("edit", edit_note);
          ("ls", list_notes);
          ("sync", sync);
-         ("tree", tree);
        ])

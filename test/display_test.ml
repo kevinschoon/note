@@ -43,26 +43,25 @@ baz
 qux
 |} in
   let result =
-    notes
-    |> to_cells ~columns:[ `Title ] ~styles:[]
-    |> Tabular.to_string ~style:`Simple
+    notes |> Tabular.to_cells ~columns:[ `Title ] ~styles:[] |> Tabular.simple
   in
   Alcotest.(check string) "tabular_simple" expected result
 
-
 let test_tabular_display_fixed () =
   let open Display in
-  let expected = {|
+  let expected =
+    {|
 title   description                             tags
 fuu     fuu note                                a|b|c
 bar     bar note with a very long description   d|e|f
 baz     baz note                                h|i|j
 qux     qux note                                k|l|m
-|} in
+|}
+  in
   let result =
     notes
-    |> to_cells ~columns:[ `Title ; `Description ; `Tags] ~styles:[]
-    |> Tabular.to_string ~style:`Fixed
+    |> Tabular.to_cells ~columns:[ `Title; `Description; `Tags ] ~styles:[]
+    |> Tabular.fixed
   in
   print_endline (String.Hexdump.to_string_hum expected);
   print_endline (String.Hexdump.to_string_hum result);
@@ -95,7 +94,6 @@ let () =
           Alcotest.test_case "tabular fixed" `Quick test_tabular_display_simple;
         ] );
       ( "tabular-fixed",
-        [
-          Alcotest.test_case "tabular fixed" `Quick test_tabular_display_fixed;
-        ] );
+        [ Alcotest.test_case "tabular fixed" `Quick test_tabular_display_fixed ]
+      );
     ]
