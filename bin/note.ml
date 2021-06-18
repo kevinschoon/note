@@ -23,12 +23,6 @@ title: "%s"
 # %s
 |} title title |> Note.of_string
 
-let rec convert_tree tree =
-  let (Note.Tree (note, others)) = tree in
-  let title = note.frontmatter.title in
-  let title = "[" ^ title ^ "]" in
-  Display.Hierarchical.Tree (title, List.map ~f:convert_tree others)
-
 let get_notes =
   let notes = cfg.state_dir |> Note.load ~context |> Note.flatten ~accm:[] in
   notes
