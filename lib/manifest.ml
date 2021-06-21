@@ -102,6 +102,7 @@ let exists ~path manifest =
   |> List.exists ~f:(fun item -> item |> to_path ~manifest |> String.equal path)
 
 let find ~path manifest =
+  (* find exactly one item, duplicates are unallowed *)
   manifest.items
   |> List.find ~f:(fun item ->
          let file_path = item |> to_path ~manifest in
@@ -137,3 +138,20 @@ let insert ~path ~slug ~title ~description ~tags manifest =
       else
         let items = item :: manifest.items in
         { items }
+
+let remove ~path manifest =
+  match manifest |> find ~path with
+  | Some item ->
+      let others = manifest |> list ~path:(item |> to_path ~manifest) in
+      if Int.is_positive (List.length others) then
+        failwith "will not delete recursively"
+      else
+        let items =
+          manifest.items
+          |> List.filter ~f:(fun item ->
+                 phys_equal
+                   (Filename.equal path (item |> to_path ~manifest))
+                   false)
+        in
+        { items }
+  | None -> failwith "not found"

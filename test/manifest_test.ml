@@ -16,7 +16,6 @@ let test_manifest () =
     |> Manifest.insert ~path:"/fuu" ~slug:"note-00000000-1.md" ~title:"bar"
          ~description:"" ~tags:[]
   in
-  print_endline (Manifest.to_string manifest);
   let result = manifest |> Manifest.find ~path:"/fuu/bar" in
   Alcotest.(check bool) "manifest loaded" (result |> Option.is_some) true;
   let result_path = Option.value_exn result |> Manifest.to_path ~manifest in
@@ -27,10 +26,20 @@ let test_manifest () =
          ~description:"" ~tags:[]
   in
   let results = manifest |> Manifest.list ~path:"/fuu" in
-  Alcotest.(check int) "n_results" 2 (List.length results)
+  Alcotest.(check int) "n_results" 2 (List.length results);
+  let manifest =
+    manifest
+    |> Manifest.insert ~path:"/fuu/bar" ~slug:"note-00000000-3.md" ~title:"qux"
+         ~description:"" ~tags:[]
+  in
+  let results = manifest |> Manifest.list ~path:"/fuu/bar" in
+  Alcotest.(check int) "n_results" 1 (List.length results);
+  Alcotest.(check int) "n_items" 4 (List.length manifest.items);
+  print_endline (Manifest.to_string manifest);
+  let manifest = manifest |> Manifest.remove ~path:"/fuu/bar/qux" in
+  print_endline (Manifest.to_string manifest);
+  Alcotest.(check int) "remove" 3 (List.length manifest.items)
 
 let () =
   Alcotest.run "Config"
-    [
-      ("load", [ Alcotest.test_case "test manifest" `Quick test_manifest ]);
-    ]
+    [ ("load", [ Alcotest.test_case "test manifest" `Quick test_manifest ]) ]
