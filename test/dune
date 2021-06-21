@@ -1,4 +1,4 @@
 (tests 
- (names config_test display_test note_test slug_test)
+ (names config_test display_test manifest_test note_test slug_test)
  (libraries note_lib alcotest)
 )
