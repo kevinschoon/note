@@ -1,6 +1,20 @@
 open Core
 open Note_lib
 
+let test_recurse () =
+  let manifest =
+    Manifest.empty
+    |> Manifest.insert ~path:"/" ~slug:"note-00000000-0" ~title:"a"
+         ~description:"" ~tags:[]
+    |> Manifest.insert ~path:"/a" ~slug:"note-00000000-1" ~title:"b"
+         ~description:"" ~tags:[]
+    |> Manifest.insert ~path:"/a/b" ~slug:"note-00000000-2" ~title:"c"
+         ~description:"" ~tags:[]
+    |> Manifest.insert ~path:"/a/b/c" ~slug:"note-00000000-3" ~title:"d"
+         ~description:"" ~tags:[]
+  in
+  Alcotest.(check int) "n_results" 4 (List.length manifest.items)
+
 let test_manifest () =
   let temp_db = Filename.temp_file "note-test" "" in
   Manifest.empty |> Manifest.save ~path:temp_db;
@@ -17,7 +31,8 @@ let test_manifest () =
          ~description:"" ~tags:[]
   in
   let result = manifest |> Manifest.find ~path:"/fuu/bar" in
-  Alcotest.(check bool) "manifest loaded" (result |> Option.is_some) true;
+  Alcotest.(check bool)
+    "manifest /fuu/bar inserted" (result |> Option.is_some) true;
   let result_path = Option.value_exn result |> Manifest.to_path ~manifest in
   Alcotest.(check string) "result path" "/fuu/bar" result_path;
   let manifest =
@@ -42,4 +57,7 @@ let test_manifest () =
 
 let () =
   Alcotest.run "Config"
-    [ ("load", [ Alcotest.test_case "test manifest" `Quick test_manifest ]) ]
+    [
+      ("recurse", [ Alcotest.test_case "test recurse" `Quick test_recurse ]);
+      ("load", [ Alcotest.test_case "test manifest" `Quick test_manifest ]);
+    ]

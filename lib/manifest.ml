@@ -21,7 +21,11 @@ module Item = struct
     let tags = Ezjsonm.find json [ "tags" ] |> Ezjsonm.get_strings in
     let parent =
       match Ezjsonm.find_opt json [ "parent" ] with
-      | Some parent -> Some (parent |> Ezjsonm.get_string)
+      | Some parent -> (
+          match parent with
+          | `Null -> None
+          | `String name -> Some name
+          | _ -> failwith "parent should be null or a string")
       | None -> None
     in
     { slug; parent; title; description; tags }
@@ -155,3 +159,9 @@ let remove ~path manifest =
         in
         { items }
   | None -> failwith "not found"
+
+let slugs manifest = manifest.items |> List.map ~f:(fun item -> item.slug)
+
+let tags manifest =
+  manifest.items
+  |> List.fold ~init:[] ~f:(fun accm item -> List.concat [ accm; item.tags ])
