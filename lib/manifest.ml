@@ -1,5 +1,13 @@
 open Core
 
+module Util = struct
+  let dirname path =
+    (* nothing is relative, all things are absolute! *)
+    match path |> Filename.is_relative with
+    | true -> Filename.concat "/" (Filename.dirname path)
+    | false -> path |> Filename.dirname
+end
+
 module Item = struct
   type t = {
     parent : string option;
@@ -117,11 +125,13 @@ let list ~path manifest =
   manifest.items
   |> List.filter ~f:(fun item ->
          let item_path = item |> to_path ~manifest in
-         String.equal path (Filename.dirname item_path))
+         Filename.equal path (Filename.dirname item_path))
 
-let insert ~path ~slug ~title ~description ~tags manifest =
-  match path with
-  | "" | "/" ->
+let insert ~path ~slug ~description ~tags manifest =
+  let title = path |> Filename.basename in
+  let dirname = path |> Util.dirname in
+  match dirname with
+  | "/" ->
       let item = Item.make ~parent:None ~slug ~title ~description ~tags in
       if manifest |> exists ~path:(item |> to_path ~manifest) then
         failwith "duplicate item"
@@ -158,6 +168,29 @@ let remove ~path manifest =
                    false)
         in
         { items }
+  | None -> failwith "not found"
+
+let update ?(new_path = None) ~path ~description ~tags manifest =
+  let result =
+    manifest.items
+    |> List.findi ~f:(fun _ item ->
+           let file_path = item |> to_path ~manifest in
+           Filename.equal file_path path)
+  in
+  match result with
+  | Some (index, item) -> (
+      match new_path with
+      | Some new_path ->
+          let manifest = manifest |> remove ~path in
+          manifest |> insert ~path:new_path ~slug:item.slug ~description ~tags
+      | None ->
+          let item = { item with description; tags } in
+          let items =
+            manifest.items
+            |> List.foldi ~init:[] ~f:(fun i accm other ->
+                   if Int.equal i index then item :: accm else other :: accm)
+          in
+          { items })
   | None -> failwith "not found"
 
 let slugs manifest = manifest.items |> List.map ~f:(fun item -> item.slug)
