@@ -5,7 +5,7 @@ let test_slug_of_string () =
   let input = "/fuu/bar/note-19700101-0.md" in
   let slug = input |> Slug.of_string in
   Alcotest.(check string) "conversion" input (slug |> Slug.to_string);
-  let input = "note-19700101-0" in
+  let input = "note-19700101-0.md" in
   let slug = input |> Slug.of_string in
   Alcotest.(check string) "bare" input (slug |> Slug.to_string)
 

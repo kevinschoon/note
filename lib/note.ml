@@ -162,6 +162,8 @@ let of_string ?(slug = None) content =
     { frontmatter; content; slug }
   else { frontmatter = Frontmatter.empty; content; slug }
 
+let root = Tree (of_string "", [])
+
 let rec flatten ~accm tree =
   let (Tree (note, others)) = tree in
   List.fold ~init:(note :: accm) ~f:(fun accm note -> flatten ~accm note) others
@@ -302,3 +304,51 @@ let load ~context path =
            slug.path |> In_channel.read_all |> of_string ~slug:(Some slug))
   in
   of_list ~context notes
+
+let rec resolve_manifest ~root ~path manifest : tree =
+  let others =
+    manifest |> Manifest.list ~path
+    |> List.map ~f:(fun item ->
+           let path = item.slug |> Slug.to_string in
+           let note = In_channel.read_all path |> of_string in
+           let root = Tree (note, []) in
+           resolve_manifest ~root ~path manifest)
+  in
+  let (Tree (root, _)) = root in
+  Tree (root, others)
+(*
+module Adapter (M : sig
+  val db : Manifest.t
+end) =
+struct
+  let read path =
+    let result = M.db |> Manifest.find ~path in
+    match result with
+    | Some entry ->
+        let note = entry.slug |> In_channel.read_all |> of_string in
+        note
+    | None -> failwith "not found"
+
+  let save ~path note =
+    let description = note.frontmatter.description in
+    let tags = note.frontmatter.tags in
+    M.db |> Manifest.update ~path ~description ~tags
+end
+
+let rec resolve_manifest ~tree ~path manifest =
+  let items = manifest |> Manifest.list ~path in
+  let items =
+    items
+    |> List.map ~f:(fun item ->
+           let logical_path = item |> Manifest.to_path ~manifest in
+           let slug = item.slug |> Slug.of_string in
+           let note =
+             slug |> Slug.to_string |> In_channel.read_all
+             |> of_string ~slug:(Some slug)
+           in
+           manifest
+           |> resolve_manifest ~tree:(Tree (note, [])) ~path:logical_path)
+  in
+  let (Tree (root, _)) = tree in
+  Tree (root, items)
+  *)

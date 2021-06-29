@@ -10,6 +10,10 @@ let rec convert_tree tree =
   let title = "[" ^ title ^ "]" in
   Display.Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
+let empty () =
+  let _ = Note.of_string {||} in
+  Alcotest.(check pass) "just an empty note" "" ""
+
 let make_a_note () =
   let note =
     Note.of_string
@@ -115,7 +119,7 @@ let insert_at () =
       ~tree
       (Note.Tree (n9, []))
   in
-  Alcotest.(check bool) "inserted" true inserted ;
+  Alcotest.(check bool) "inserted" true inserted;
   let result =
     Note.find_one
       ~term:{ title = [ "note-9" ]; description = []; tags = [] }
@@ -213,8 +217,9 @@ let n3 =
   # Note 3
 |}
 
-let n4 = 
-  Note.of_string {|
+let n4 =
+  Note.of_string
+    {|
   ---
   title: note-4
   parent: {"title": ["note-1"]}
@@ -242,14 +247,36 @@ let test_resolve () =
 |}
   in
   let tree_as_string =
-    [ n3; n2; n1; n0 ; n4] |> Note.resolve ~root |> convert_tree
+    [ n3; n2; n1; n0; n4 ] |> Note.resolve ~root |> convert_tree
     |> Display.Hierarchical.to_string
   in
   Alcotest.(check string) "resolve" expected tree_as_string
 
+let test_resolve_manifest () =
+
+  (*
+  let expected =
+    {|
+[root]
+└──[n0]
+   └──[n1]
+      └──[n2]
+|}
+  in
+  let tree = Note.Tree (Note.of_string Note.root_template, []) in
+  let tree_as_string =
+    manifest
+    |> Note.resolve_manifest ~path:"/" ~tree
+    |> convert_tree |> Display.Hierarchical.to_string
+  in *)
+  Alcotest.(check pass) "resolve-manifest" "asfd" ",,,,"
+
 let () =
   Alcotest.run "Note"
     [
+      ( "empty",
+        [ Alcotest.test_case "parse an empty note" `Quick empty ]
+      );
       ( "create",
         [ Alcotest.test_case "create a note from a string" `Quick make_a_note ]
       );
@@ -265,4 +292,8 @@ let () =
       ( "buf_insert",
         [ Alcotest.test_case "buf insert flat list" `Quick test_buf_insert ] );
       ("resolve", [ Alcotest.test_case "resolve flat list" `Quick test_resolve ]);
+      ( "resolve-manifest",
+        [
+          Alcotest.test_case "resolve via manifest" `Quick test_resolve_manifest;
+        ] );
     ]

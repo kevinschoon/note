@@ -6,16 +6,30 @@ type t = { path : string; date : Date.t; index : int }
 
 let to_string slug = slug.path
 
-let of_string path =
+let of_string ?(basepath = None) path =
   let result = Re.all pattern path |> List.hd_exn in
   let items = Re.Group.all result |> Array.to_list in
   let date = Date.parse ~fmt:"%Y%m%d" (List.nth_exn items 2) in
   let index = int_of_string (List.nth_exn items 3) in
+  let path =
+    match basepath with
+    | Some basepath -> Filename.concat basepath path
+    | None -> path
+  in
+  let path =
+    match Filename.check_suffix path "md" with
+    | true -> path
+    | false -> String.concat [ path; ".md" ]
+  in
   { path; date; index }
 
 let shortname t =
   let date_str = Date.format t.date "%Y%m%d" in
   sprintf "note-%s-%d" date_str t.index
+
+let append ~path t =
+  let path = Filename.concat path t.path in
+  { t with path }
 
 let compare s1 s2 = String.compare s1.path s2.path
 
