@@ -5,9 +5,20 @@ let cfg = Config.config_path |> Config.load
 
 let manifest = cfg.state_dir |> Manifest.load_or_init
 
-let notes = manifest |> Note.resolve_manifest ~root:Note.root ~path:"/"
+let root = match manifest |> Manifest.find ~path:"/" with
+  | Some item -> (item.slug |> Slug.to_string |> In_channel.read_all |> Note.of_string)
+  | None -> 
+      let manifest = manifest |> Manifest.create ~path:"/" in
+      let last = manifest.items |> List.hd_exn in
+      let slug = last.slug |> Slug.to_string in
+      let root = Note.root_template |> Note.of_string in
+      slug |> Out_channel.write_all ~data: (root |> Note.to_string) ;
+      manifest |> Manifest.save ;
+      root
 
-let get_title (note : Note.note) = note.frontmatter.title
+let notes = (Note.Tree (root, manifest |> Note.resolve_manifest ~path:"/"))
+
+let get_title (note : Note.note) = note.frontmatter.path
 
 let get_tags (note : Note.note) = note.frontmatter.tags
 
@@ -34,9 +45,6 @@ let key_arg =
         ~f:(fun key -> String.is_substring ~substring:part key)
         string_keys)
     Config.Key.of_string
-
-let flag_to_op state =
-  match state with true -> Note.Operator.And | false -> Note.Operator.Or
 
 let last_slug = manifest.items |> List.map ~f:(fun item -> item.slug) |> List.hd
 
@@ -83,13 +91,19 @@ on_modification callback will be invoked if the file is committed to disk.
       and path = flag "path" (required name_arg) ~doc:"path"
       and tags = flag "tag" (listed tag_arg) ~doc:"tag"
       and description =
-        flag "description" (optional_with_default "" string) ~doc:"description"
+        flag "description" (optional string) ~doc:"description"
       in
       fun () ->
-        let manifest = manifest |> Manifest.create ~path ~description ~tags in
+        let manifest = manifest |> Manifest.create ~path in
         let last = List.hd_exn manifest.items in
-        print_endline (last.slug |> Slug.to_string);
-        Io.create ~callback:None ~content:"test" (Slug.to_string last.slug);
+        let note : Note.note =
+          {
+            frontmatter = { path = last.path; description; tags };
+            content = "";
+          }
+        in
+        Io.create ~callback:None ~content:(note |> Note.to_string)
+          (Slug.to_string last.slug);
         manifest |> Manifest.save]
 
 let delete_note =
@@ -113,14 +127,12 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let path = flag "path" (required name_arg) ~doc:"path"
-      and tags = flag "tag" (listed tag_arg) ~doc:"tag"
-      and description =
+      let _ = flag "path" (required name_arg) ~doc:"path"
+      and _ = flag "tag" (listed tag_arg) ~doc:"tag"
+      and _ =
         flag "description" (optional_with_default "" string) ~doc:"description"
       in
-      fun () ->
-        let manifest = manifest |> Manifest.update ~path ~description ~tags in
-        manifest |> Manifest.save]
+      fun () -> ()]
 
 let list_notes =
   let open Command.Let_syntax in

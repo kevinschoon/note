@@ -38,16 +38,13 @@ module Tabular = struct
                 ~f:(fun column ->
                   match column with
                   | `Title ->
-                      let text_value = note.frontmatter.title in
+                      let text_value = note.frontmatter.path in
                       (text_value, String.length text_value, default_padding)
                   | `Description ->
-                      let text_value = note.frontmatter.description in
-                      (text_value, String.length text_value, default_padding)
-                  | `Slug ->
                       let text_value =
-                        match note.slug with
-                        | Some slug -> slug |> Slug.shortname
-                        | None -> "??"
+                        match note.frontmatter.description with
+                        | Some text_value -> text_value
+                        | None -> ""
                       in
                       (text_value, String.length text_value, default_padding)
                   | `Tags ->
@@ -188,19 +185,15 @@ end
 
 let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
-  let title = note.frontmatter.title in
+  let title = note.frontmatter.path in
   let title = "[" ^ title ^ "]" in
   Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
 let to_string ?(style = `Tree) ?(columns = []) ?(styles = []) notes =
+  let _ = styles in
+  let _ = columns in
   match style with
   | `Tree -> notes |> convert_tree |> Hierarchical.to_string
-  | `Simple ->
-      notes |> Note.flatten ~accm:[] |> Tabular.to_cells ~columns ~styles
-      |> Tabular.simple
-  | `Fixed ->
-      notes |> Note.flatten ~accm:[] |> Tabular.to_cells ~columns ~styles
-      |> Tabular.fixed
-  | `Wide ->
-      notes |> Note.flatten ~accm:[] |> Tabular.to_cells ~columns ~styles
-      |> Tabular.wide
+  | `Simple -> failwith "not implemented"
+  | `Fixed -> failwith "not implemented"
+  | `Wide -> failwith "not implemented"

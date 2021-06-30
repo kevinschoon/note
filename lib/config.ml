@@ -213,7 +213,7 @@ type t = {
   encoding : Encoding.t;
   column_list : Column.t list;
   styles : StylePair.t list;
-  context : Note.Term.t;
+  context : string option;
 }
 
 let of_string str =
@@ -257,8 +257,8 @@ let of_string str =
     | None -> []
   and context =
     match Ezjsonm.find_opt json [ Key.to_string `Context ] with
-    | Some value -> Note.Term.of_json value
-    | None -> { title = []; description = []; tags = [] }
+    | Some value -> Some (Ezjsonm.get_string value)
+    | None -> None
   in
   {
     state_dir;
@@ -288,7 +288,11 @@ let to_string t =
   and encoding = Ezjsonm.string (Encoding.to_string t.encoding)
   and column_list = Ezjsonm.strings (List.map ~f:Column.to_string t.column_list)
   and styles = StylePair.to_json t.styles
-  and context = Note.Term.to_json t.context in
+  and context =
+    match t.context with
+    | Some context -> Ezjsonm.string context
+    | None -> Ezjsonm.unit ()
+  in
   Yaml.to_string_exn
     (Ezjsonm.dict
        [
@@ -318,7 +322,7 @@ let get t key =
       String.concat ~sep:" " (List.map ~f:Column.to_string t.column_list)
   | `Styles ->
       Ezjsonm.to_string (Ezjsonm.list noop (StylePair.to_json t.styles))
-  | `Context -> t.context |> Note.Term.to_json |> Ezjsonm.to_string
+  | `Context -> ( match t.context with Some context -> context | None -> "")
 
 let set t key value =
   match key with
@@ -342,7 +346,7 @@ let set t key value =
       let styles = StylePair.of_json (Yaml.of_string_exn value) in
       { t with styles }
   | `Context ->
-      let context = value |> Ezjsonm.from_string |> Note.Term.of_json in
+      let context = match value with "" -> None | _ -> Some value in
       { t with context }
 
 let load path =

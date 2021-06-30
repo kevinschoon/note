@@ -9,18 +9,11 @@ module Util = struct
 end
 
 module Item = struct
-  type t = {
-    parent : Slug.t option;
-    slug : Slug.t;
-    path : string;
-    description : string;
-    tags : string list;
-  }
+  type t = { parent : Slug.t option; slug : Slug.t; path : string }
 
   let compare t1 t2 = String.equal t1.path t2.path
 
-  let make ~parent ~slug ~path ~description ~tags =
-    { parent; slug; path; description; tags }
+  let make ~parent ~slug ~path = { parent; slug; path }
 
   let title item = item.path |> Filename.basename
 
@@ -30,10 +23,6 @@ module Item = struct
       |> Ezjsonm.get_string |> Slug.of_string ~basepath
     in
     let path = Ezjsonm.find json [ "path" ] |> Ezjsonm.get_string in
-    let description =
-      Ezjsonm.find json [ "description" ] |> Ezjsonm.get_string
-    in
-    let tags = Ezjsonm.find json [ "tags" ] |> Ezjsonm.get_strings in
     let parent =
       match Ezjsonm.find_opt json [ "parent" ] with
       | Some parent -> (
@@ -43,7 +32,7 @@ module Item = struct
           | _ -> failwith "parent should be null or a string")
       | None -> None
     in
-    { slug; parent; path; description; tags }
+    { slug; parent; path }
 
   let to_json item =
     let parent =
@@ -56,8 +45,6 @@ module Item = struct
         ("parent", parent);
         ("slug", item.slug |> Slug.shortname |> Ezjsonm.string);
         ("path", item.path |> Ezjsonm.string);
-        ("description", item.description |> Ezjsonm.string);
-        ("tags", item.tags |> Ezjsonm.strings);
       ]
 end
 
@@ -120,7 +107,7 @@ let find ~path manifest =
   manifest.items |> List.find ~f:(fun item -> Filename.equal item.path path)
 
 (* TODO: no support for recursive operations yet *)
-let create ~path ~description ~tags manifest =
+let create ~path manifest =
   if
     Option.is_some
       (manifest.items
@@ -137,9 +124,7 @@ let create ~path ~description ~tags manifest =
     match parent_dir with
     | "." | "/" | "" ->
         (* root entry *)
-        let item =
-          Item.make ~parent:None ~slug:next_slug ~path ~description ~tags
-        in
+        let item = Item.make ~parent:None ~slug:next_slug ~path in
         { manifest with items = item :: manifest.items }
     | parent_dir -> (
         let parent = manifest |> find ~path:parent_dir in
@@ -148,7 +133,6 @@ let create ~path ~description ~tags manifest =
             let parent_slug = parent.slug in
             let item =
               Item.make ~parent:(Some parent_slug) ~slug:next_slug ~path
-                ~description ~tags
             in
             { manifest with items = item :: manifest.items }
         | None -> failwith "no parent")
@@ -156,7 +140,8 @@ let create ~path ~description ~tags manifest =
 let list ~path manifest =
   manifest.items
   |> List.filter ~f:(fun item ->
-         String.equal (item.path |> Filename.dirname) path)
+         String.equal (item.path |> Filename.dirname) path
+         && not (String.equal item.path "/"))
 
 let remove ~path manifest =
   match manifest |> list ~path |> List.length with
@@ -168,33 +153,14 @@ let remove ~path manifest =
       { manifest with items }
   | _ -> failwith "will not delete recursively"
 
-let update ~path ~description ~tags manifest =
-  let result =
-    manifest.items
-    |> List.findi ~f:(fun _ item -> Filename.equal item.path path)
-  in
-  match result with
-  | Some (other, _) ->
-      let items =
-        manifest.items
-        |> List.foldi ~init:[] ~f:(fun index accm item ->
-               if Int.equal index other then
-                 let item = { item with description; tags } in
-                 item :: accm
-               else item :: accm)
-      in
-      { manifest with items }
-  | None -> failwith "not found"
-
 let move ~source ~dest manifest =
   let item = manifest |> find ~path:source in
   let others = manifest |> list ~path:source in
   match others |> List.length with
   | 0 -> (
       match item with
-      | Some item ->
-          let description, tags = (item.description, item.tags) in
+      | Some _ ->
           let manifest = manifest |> remove ~path:source in
-          manifest |> create ~path:dest ~description ~tags
+          manifest |> create ~path:dest
       | None -> failwith "not found")
   | _ -> failwith "cannot update recursively"

@@ -5,28 +5,28 @@ let notes =
   [
     {| 
 ---
-title: fuu
+path: fuu
 description: "fuu note"
 tags: [a,b,c]
 ---
 |};
     {|
 ---
-title: bar
+path: bar
 description: "bar note with a very long description"
 tags: [d,e,f]
 ---
 |};
     {|
 ---
-title: baz
+path: baz
 description: "baz note"
 tags: [h,i,j]
 ---
 |};
     {|
 ---
-title: qux
+path: qux
 description: "qux note"
 tags: [k,l,m]
 ---
