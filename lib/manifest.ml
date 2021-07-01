@@ -107,6 +107,7 @@ let find ~path manifest =
 
 (* TODO: no support for recursive operations yet *)
 let create ~path manifest =
+  let path = path |> Util.fixpath in
   if
     Option.is_some
       (manifest.items

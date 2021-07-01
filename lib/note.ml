@@ -179,6 +179,7 @@ module Adapter = struct
     let manifest = options.state_dir |> Manifest.load_or_init in
     let manifest = manifest |> Manifest.create ~path in
     let item = manifest.items |> List.hd_exn in
+    let path = item.path in
     let slug = item.slug in
     (match content with
     | Some content ->
