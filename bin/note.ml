@@ -80,8 +80,7 @@ is provided then all notes will be listed.
         |> List.map ~f:(fun path -> options |> Note.Adapter.load ~path)
         |> List.iter ~f:(fun notes ->
                let note = notes |> Note.fst in
-               note |> Note.to_string |> print_endline)
-        ]
+               note |> Note.to_string |> print_endline)]
 
 let create_note =
   let open Command.Let_syntax in
@@ -108,16 +107,19 @@ on_modification callback will be invoked if the file is committed to disk.
         in
         options |> Note.Adapter.create ~description ~tags ~content ~path]
 
-let delete_note =
+let remove_note =
   let open Command.Let_syntax in
-  Command.basic ~summary:"delete an existing note"
-    ~readme:(fun () ->
-      {|
-Delete the first note that matches the filter criteria.
-|})
+  Command.basic ~summary:"remove an existing note"
+    ~readme:(fun () -> {||})
     [%map_open
       let path = anon ("path" %: name_arg) in
-      fun () -> options |> Note.Adapter.remove ~path]
+      fun () ->
+        let message = (Format.sprintf "Are you sure you want to delete note %s?" path) in
+        match options |> Note.Adapter.find ~path with
+        | Some _ ->
+            let callback () = options |> Note.Adapter.remove ~path in
+            Util.prompt ~callback message
+        | None -> failwith "not found"]
 
 let edit_note =
   let open Command.Let_syntax in
@@ -175,7 +177,7 @@ let run =
            Command.group ~summary:"config management"
              [ ("show", config_show); ("get", config_get); ("set", config_set) ]
          );
-         ("delete", delete_note);
+         ("rm", remove_note);
          ("edit", edit_note);
          ("ls", list_notes);
          ("sync", sync);
