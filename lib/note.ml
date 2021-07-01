@@ -41,9 +41,13 @@ module Frontmatter = struct
     content |> Ezjsonm.dict
 end
 
-type note = { frontmatter : Frontmatter.t; content : string }
+type t = { frontmatter : Frontmatter.t; content : string }
 
-and tree = Tree of (note * tree list)
+and tree = Tree of (t * tree list)
+
+let frontmatter note = note.frontmatter
+
+let content note = note.content
 
 let fst tree =
   let (Tree (note, _)) = tree in
@@ -60,7 +64,7 @@ tags: []
 # This is a Note!
 |}
 
-let rec flatten ~accm tree =
+let rec flatten ?(accm = []) tree =
   let (Tree (note, others)) = tree in
   List.fold ~init:(note :: accm) ~f:(fun accm note -> flatten ~accm note) others
 
@@ -110,7 +114,7 @@ let of_string ?(path = None) content =
       meta_str |> Yaml.of_string_exn |> Frontmatter.of_json ~path
     in
     (* read second half of note as "content" *)
-    let content = String.slice content ((List.nth_exn indexes 1)+3) 0 in
+    let content = String.slice content (List.nth_exn indexes 1 + 3) 0 in
     { frontmatter; content }
   else { frontmatter = Frontmatter.empty; content }
 
@@ -227,3 +231,5 @@ module Adapter = struct
         options.on_modification |> run_or_noop
     | None -> failwith "not found"
 end
+
+include Adapter

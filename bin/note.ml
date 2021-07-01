@@ -5,16 +5,16 @@ open Note_lib
 
 let cfg = Config.config_path |> Config.load
 
-let options : Note.Adapter.options =
+let options : Note.options =
   {
     state_dir = cfg.state_dir;
     on_modification = cfg.on_modification;
     editor = cfg.editor;
   }
 
-let get_title (note : Note.note) = note.frontmatter.path
+let get_title (note : Note.t) = (note |> Note.frontmatter).path
 
-let get_tags (note : Note.note) = note.frontmatter.tags
+let get_tags (note : Note.t) = (note |> Note.frontmatter).tags
 
 let to_keys ~kind notes =
   match kind with
@@ -77,7 +77,7 @@ is provided then all notes will be listed.
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
         paths
-        |> List.map ~f:(fun path -> options |> Note.Adapter.load ~path)
+        |> List.map ~f:(fun path -> options |> Note.load ~path)
         |> List.iter ~f:(fun notes ->
                let note = notes |> Note.fst in
                note |> Note.to_string |> print_endline)]
@@ -105,7 +105,7 @@ on_modification callback will be invoked if the file is committed to disk.
           | Some _ -> Some (In_channel.stdin |> In_channel.input_all)
           | None -> None
         in
-        options |> Note.Adapter.create ~description ~tags ~content ~path]
+        options |> Note.create ~description ~tags ~content ~path]
 
 let remove_note =
   let open Command.Let_syntax in
@@ -114,10 +114,12 @@ let remove_note =
     [%map_open
       let path = anon ("path" %: name_arg) in
       fun () ->
-        let message = (Format.sprintf "Are you sure you want to delete note %s?" path) in
-        match options |> Note.Adapter.find ~path with
+        let message =
+          Format.sprintf "Are you sure you want to delete note %s?" path
+        in
+        match options |> Note.find ~path with
         | Some _ ->
-            let callback () = options |> Note.Adapter.remove ~path in
+            let callback () = options |> Note.remove ~path in
             Util.prompt ~callback message
         | None -> failwith "not found"]
 
@@ -134,7 +136,7 @@ Select a note that matches the filter criteria and open it in your text editor.
       and _ =
         flag "description" (optional_with_default "" string) ~doc:"description"
       in
-      fun () -> options |> Note.Adapter.edit ~path]
+      fun () -> options |> Note.edit ~path]
 
 let list_notes =
   let open Command.Let_syntax in
@@ -149,7 +151,7 @@ is provided then all notes will be listed.
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
         paths
-        |> List.map ~f:(fun path -> options |> Note.Adapter.load ~path)
+        |> List.map ~f:(fun path -> options |> Note.load ~path)
         |> List.iter ~f:(fun notes ->
                notes |> Display.convert_tree |> Display.Hierarchical.to_string
                |> print_endline)]

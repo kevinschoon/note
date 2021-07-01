@@ -15,7 +15,7 @@ module Tabular = struct
     | Some entry -> sprintf entry.styles "%s" text
     | None -> sprintf [ Foreground Default ] "%s" text
 
-  let to_cells ?(paint = false) ~columns ~styles (notes : Note.note list) =
+  let to_cells ?(paint = false) ~columns ~styles (notes : Note.t list) =
     let header =
       List.map
         ~f:(fun column ->
@@ -38,21 +38,21 @@ module Tabular = struct
                 ~f:(fun column ->
                   match column with
                   | `Title ->
-                      let text_value = note.frontmatter.path in
+                      let text_value = (note |> Note.frontmatter).path in
                       (text_value, String.length text_value, default_padding)
                   | `Description ->
                       let text_value =
-                        match note.frontmatter.description with
+                        match (note |> Note.frontmatter).description with
                         | Some text_value -> text_value
                         | None -> ""
                       in
                       (text_value, String.length text_value, default_padding)
                   | `Tags ->
                       let text_value =
-                        String.concat ~sep:"|" note.frontmatter.tags
+                        String.concat ~sep:"|" (note |> Note.frontmatter).tags
                       in
                       let text_length = String.length text_value in
-                      let tags = note.frontmatter.tags in
+                      let tags = (note |> Note.frontmatter).tags in
                       let tags =
                         if paint then
                           List.map ~f:(fun tag -> paint_tag styles tag) tags
@@ -62,7 +62,7 @@ module Tabular = struct
                       (text_value, text_length, default_padding)
                   | `LineCount ->
                       let count =
-                        note.content |> String.split_lines |> List.length
+                        note |> Note.content |> String.split_lines |> List.length
                       in
                       let text_value = count |> Core.sprintf "%d" in
                       (text_value, String.length text_value, default_padding))
@@ -185,7 +185,7 @@ end
 
 let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
-  let title = Filename.basename note.frontmatter.path in
+  let title = Filename.basename (note |> Note.frontmatter).path in
   let title = "[" ^ title ^ "]" in
   Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
