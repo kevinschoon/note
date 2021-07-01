@@ -1,11 +1,11 @@
 open Core
 
 module Util = struct
-  let dirname path =
-    (* nothing is relative, all things are absolute! *)
+  (* makes any relative path absolute *)
+  let fixpath path =
     match path |> Filename.is_relative with
-    | true -> Filename.concat "/" (Filename.dirname path)
-    | false -> path |> Filename.dirname
+    | true -> Filename.concat "/" path
+    | false -> path
 end
 
 module Item = struct
@@ -102,6 +102,7 @@ let save manifest =
   Out_channel.write_all ~data:(to_string manifest) (manifest |> mpath)
 
 let find ~path manifest =
+  let path = path |> Util.fixpath in
   manifest.items |> List.find ~f:(fun item -> Filename.equal item.path path)
 
 (* TODO: no support for recursive operations yet *)
@@ -136,12 +137,14 @@ let create ~path manifest =
         | None -> failwith "no parent")
 
 let list ~path manifest =
+  let path = path |> Util.fixpath in
   manifest.items
   |> List.filter ~f:(fun item ->
          String.equal (item.path |> Filename.dirname) path
          && not (String.equal item.path "/"))
 
 let remove ~path manifest =
+  let path = path |> Util.fixpath in
   match manifest |> list ~path |> List.length with
   | 0 ->
       let items =
@@ -152,6 +155,8 @@ let remove ~path manifest =
   | _ -> failwith "will not delete recursively"
 
 let move ~source ~dest manifest =
+  let source = source |> Util.fixpath in
+  let dest = dest |> Util.fixpath in
   let item = manifest |> find ~path:source in
   let others = manifest |> list ~path:source in
   match others |> List.length with
