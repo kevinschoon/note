@@ -99,9 +99,7 @@ let load_or_init state_dir =
       make state_dir
 
 let save manifest =
-  manifest |> lock;
-  Out_channel.write_all ~data:(to_string manifest) (manifest |> mpath);
-  manifest |> unlock
+  Out_channel.write_all ~data:(to_string manifest) (manifest |> mpath)
 
 let find ~path manifest =
   manifest.items |> List.find ~f:(fun item -> Filename.equal item.path path)

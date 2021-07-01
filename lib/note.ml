@@ -45,6 +45,10 @@ type note = { frontmatter : Frontmatter.t; content : string }
 
 and tree = Tree of (note * tree list)
 
+let fst tree =
+  let (Tree (note, _)) = tree in
+  note
+
 let root_template =
   {|
 ---
@@ -54,8 +58,11 @@ tags: []
 ---
 
 # This is a Note!
-
 |}
+
+let rec flatten ~accm tree =
+  let (Tree (note, others)) = tree in
+  List.fold ~init:(note :: accm) ~f:(fun accm note -> flatten ~accm note) others
 
 let rec extract_structured_data (accm : Ezjsonm.value list) (doc : Omd.doc) :
     Ezjsonm.value list =
@@ -102,10 +109,10 @@ let of_string ?(path = None) content =
     let frontmatter =
       meta_str |> Yaml.of_string_exn |> Frontmatter.of_json ~path
     in
+    (* read second half of note as "content" *)
+    let content = String.slice content ((List.nth_exn indexes 1)+3) 0 in
     { frontmatter; content }
   else { frontmatter = Frontmatter.empty; content }
-
-let root = Tree (of_string root_template, [])
 
 let rec resolve_manifest ~path manifest =
   let items =
@@ -123,39 +130,99 @@ let rec resolve_manifest ~path manifest =
   in
   items
 
-(*
-module Adapter (M : sig
-  val db : Manifest.t
-end) =
-struct
-  let read path =
-    let result = M.db |> Manifest.find ~path in
-    match result with
-    | Some entry ->
-        let note = entry.slug |> In_channel.read_all |> of_string in
-        note
+(* high level adapter *)
+module Adapter = struct
+  type options = {
+    state_dir : string;
+    editor : string;
+    on_modification : string option;
+  }
+
+  let editor_command ~editor path = Format.sprintf "%s %s" editor path
+
+  let run_or_noop command =
+    match command with Some command -> command |> Sys.command_exn | None -> ()
+
+  let load ~path options =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    (* initialize the root note *)
+    let root =
+      match manifest |> Manifest.find ~path with
+      | Some item ->
+          item.slug |> Slug.to_string |> In_channel.read_all |> of_string
+      | None -> (
+          match path with
+          | "/" ->
+              let manifest = manifest |> Manifest.create ~path:"/" in
+              let last = manifest.items |> List.hd_exn in
+              let slug = last.slug |> Slug.to_string in
+              let root = root_template |> of_string in
+              slug |> Out_channel.write_all ~data:(root |> to_string);
+              manifest |> Manifest.save;
+              root
+          | _ -> failwith "not found")
+    in
+    Tree (root, manifest |> resolve_manifest ~path)
+
+  let find ~path options =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    let item = manifest |> Manifest.find ~path in
+    match item with
+    | Some item ->
+        let slug = item.slug in
+        let note = slug |> Slug.to_string |> In_channel.read_all |> of_string in
+        Some note
     | None -> failwith "not found"
 
-  let save ~path note =
-    let description = note.frontmatter.description in
-    let tags = note.frontmatter.tags in
-    M.db |> Manifest.update ~path ~description ~tags
-end
+  let create ?(description = None) ?(tags = []) ?(content = None) ~path options
+      =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    let manifest = manifest |> Manifest.create ~path in
+    let item = manifest.items |> List.hd_exn in
+    let slug = item.slug in
+    (match content with
+    | Some content ->
+        let note = { frontmatter = { path; description; tags }; content } in
+        slug |> Slug.to_string |> Out_channel.write_all ~data:(note |> to_string)
+    | None ->
+        let note =
+          { frontmatter = { path; description; tags }; content = "" }
+        in
+        slug |> Slug.to_string |> Out_channel.write_all ~data:(note |> to_string);
+        slug |> Slug.to_string
+        |> editor_command ~editor:options.editor
+        |> Sys.command_exn);
+    options.on_modification |> run_or_noop;
+    manifest |> Manifest.save
 
-let rec resolve_manifest ~tree ~path manifest =
-  let items = manifest |> Manifest.list ~path in
-  let items =
-    items
-    |> List.map ~f:(fun item ->
-           let logical_path = item |> Manifest.to_path ~manifest in
-           let slug = item.slug |> Slug.of_string in
-           let note =
-             slug |> Slug.to_string |> In_channel.read_all
-             |> of_string ~slug:(Some slug)
-           in
-           manifest
-           |> resolve_manifest ~tree:(Tree (note, [])) ~path:logical_path)
-  in
-  let (Tree (root, _)) = tree in
-  Tree (root, items)
-  *)
+  let remove ~path options =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    let item = manifest |> Manifest.find ~path in
+    match item with
+    | Some item ->
+        let slug = item.slug in
+        let manifest = manifest |> Manifest.remove ~path in
+        slug |> Slug.to_string |> Unix.remove;
+        options.on_modification |> run_or_noop;
+        manifest |> Manifest.save
+    | None -> failwith "not found"
+
+  let edit ~path options =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    let item = manifest |> Manifest.find ~path in
+    match item with
+    | Some item ->
+        let slug = item.slug in
+        slug |> Slug.to_string
+        |> editor_command ~editor:options.editor
+        |> Sys.command_exn;
+        let note = slug |> Slug.to_string |> In_channel.read_all |> of_string in
+        let adjusted_path = note.frontmatter.path in
+        (if not (Filename.equal adjusted_path item.path) then
+         let manifest =
+           manifest |> Manifest.move ~source:item.path ~dest:adjusted_path
+         in
+         manifest |> Manifest.save);
+        options.on_modification |> run_or_noop
+    | None -> failwith "not found"
+end

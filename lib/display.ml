@@ -185,7 +185,7 @@ end
 
 let rec convert_tree tree =
   let (Note.Tree (note, others)) = tree in
-  let title = note.frontmatter.path in
+  let title = Filename.basename note.frontmatter.path in
   let title = "[" ^ title ^ "]" in
   Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
