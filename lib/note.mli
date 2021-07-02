@@ -22,8 +22,8 @@ val to_json : t -> Ezjsonm.value
 (* get a note as json data with structured data extracted from it *)
 
 val frontmatter : t -> Frontmatter.t
-
 (* get decoded frontmatter structure *)
+
 val content : t -> string
 (* get the raw text content without frontmatter heading *)
 
@@ -60,3 +60,12 @@ val remove : path:string -> options -> unit
 
 val edit : path:string -> options -> unit
 (* edit an existing note opening it in the configured editor *)
+
+(* helper functions for autocomplete *)
+module Completion : sig
+  val suggest_paths : hint:string -> options -> string list
+  (* suggest paths for autocomplete *)
+
+  val suggest_tags : hint:string -> options -> string list
+  (* suggest tags for autocomplete *)
+end

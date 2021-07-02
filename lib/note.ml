@@ -233,3 +233,22 @@ module Adapter = struct
 end
 
 include Adapter
+
+module Completion = struct
+  let suggest_paths ~hint options =
+    options.state_dir |> Manifest.load_or_init
+    |> Manifest.list ~path:(hint |> Filename.dirname)
+    |> List.map ~f:(fun item -> item.path)
+    |> List.filter ~f:(fun path -> path |> String.is_substring ~substring:hint)
+
+  let suggest_tags ~hint options =
+    let manifest = options.state_dir |> Manifest.load_or_init in
+    manifest.items
+    |> List.concat_map ~f:(fun item ->
+           let frontmatter =
+             item.slug |> Slug.to_string |> In_channel.read_all |> of_string
+             |> frontmatter
+           in
+           frontmatter.tags)
+    |> List.filter ~f:(fun tag -> tag |> String.is_substring ~substring:hint)
+end

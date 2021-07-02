@@ -12,33 +12,28 @@ let options : Note.options =
     editor = cfg.editor;
   }
 
-let get_title (note : Note.t) = (note |> Note.frontmatter).path
+module Args = struct
+  let path =
+    Command.Arg_type.create
+      ~complete:(fun _ ~part ->
+        options |> Note.Completion.suggest_paths ~hint:part)
+      (fun filter -> filter)
 
-let get_tags (note : Note.t) = (note |> Note.frontmatter).tags
+  let tag =
+    Command.Arg_type.create
+      ~complete:(fun _ ~part ->
+        options |> Note.Completion.suggest_tags ~hint:part)
+      (fun filter -> filter)
 
-let to_keys ~kind notes =
-  match kind with
-  | `Title -> List.map ~f:get_title notes
-  | `Tags -> List.concat (List.map ~f:get_tags notes)
-
-let name_arg =
-  Command.Arg_type.create
-    ~complete:(fun _ ~part -> [ part ])
-    (fun filter -> filter)
-
-let tag_arg =
-  Command.Arg_type.create
-    ~complete:(fun _ ~part -> [ part ])
-    (fun filter -> filter)
-
-let key_arg =
-  Command.Arg_type.create
-    ~complete:(fun _ ~part ->
-      let string_keys = List.map ~f:Config.Key.to_string Config.Key.all in
-      List.filter
-        ~f:(fun key -> String.is_substring ~substring:part key)
-        string_keys)
-    Config.Key.of_string
+  let config_key =
+    Command.Arg_type.create
+      ~complete:(fun _ ~part ->
+        let string_keys = List.map ~f:Config.Key.to_string Config.Key.all in
+        List.filter
+          ~f:(fun key -> String.is_substring ~substring:part key)
+          string_keys)
+      Config.Key.of_string
+end
 
 (*
  * commands
@@ -52,14 +47,15 @@ let config_get =
   let open Command.Let_syntax in
   Command.basic ~summary:"get a config value"
     [%map_open
-      let key = anon ("key" %: key_arg) in
+      let key = anon ("key" %: Args.config_key) in
       fun () -> print_endline (Config.get cfg key)]
 
 let config_set =
   let open Command.Let_syntax in
   Command.basic ~summary:"set a config value"
     [%map_open
-      let key = anon ("key" %: key_arg) and value = anon ("value" %: string) in
+      let key = anon ("key" %: Args.config_key)
+      and value = anon ("value" %: string) in
       fun () ->
         let cfg = Config.set cfg key value in
         Config.save cfg]
@@ -73,7 +69,7 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let paths = anon (sequence ("path" %: string)) in
+      let paths = anon (sequence ("path" %: Args.path)) in
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
         paths
@@ -94,8 +90,8 @@ on_modification callback will be invoked if the file is committed to disk.
       let stdin =
         flag "stdin" (optional bool)
           ~doc:"read content from stdin and copy it into the note body"
-      and path = anon ("path" %: name_arg)
-      and tags = flag "tag" (listed tag_arg) ~doc:"tag"
+      and path = anon ("path" %: Args.path)
+      and tags = flag "tag" (listed Args.tag) ~doc:"tag"
       and description =
         flag "description" (optional string) ~doc:"description"
       in
@@ -112,7 +108,7 @@ let remove_note =
   Command.basic ~summary:"remove an existing note"
     ~readme:(fun () -> {||})
     [%map_open
-      let path = anon ("path" %: name_arg) in
+      let path = anon ("path" %: Args.path) in
       fun () ->
         let message =
           Format.sprintf "Are you sure you want to delete note %s?" path
@@ -131,8 +127,8 @@ let edit_note =
 Select a note that matches the filter criteria and open it in your text editor.
 |})
     [%map_open
-      let path = anon ("path" %: name_arg)
-      and _ = flag "tag" (listed tag_arg) ~doc:"tag"
+      let path = anon ("path" %: Args.path)
+      and _ = flag "tag" (listed Args.tag) ~doc:"tag"
       and _ =
         flag "description" (optional_with_default "" string) ~doc:"description"
       in
@@ -147,7 +143,7 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let paths = anon (sequence ("path" %: string)) in
+      let paths = anon (sequence ("path" %: Args.path)) in
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
         paths

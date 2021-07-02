@@ -2,22 +2,23 @@ open Core
 open Note_lib
 
 let parsing () =
-  let n1 = {|
+  let n1 =
+    {|
 ---
 path: /fuu
 tags: ["bar"]
 description: "baz"
 ---
-# Hello World|} in
+# Hello World|}
+  in
   let n1 = n1 |> Note.of_string in
-  Alcotest.(check string) "path" "/fuu" (n1 |> Note.frontmatter).path ;
+  Alcotest.(check string) "path" "/fuu" (n1 |> Note.frontmatter).path;
   let tag = (n1 |> Note.frontmatter).tags |> List.hd_exn in
-  Alcotest.(check string) "tag" "bar" tag ;
-  let description = (Option.value_exn (n1 |> Note.frontmatter).description) in
-  Alcotest.(check string) "description" "baz" description ;
-  let content = (n1 |> Note.content) in
+  Alcotest.(check string) "tag" "bar" tag;
+  let description = Option.value_exn (n1 |> Note.frontmatter).description in
+  Alcotest.(check string) "description" "baz" description;
+  let content = n1 |> Note.content in
   Alcotest.(check string) "content" "\n# Hello World" content
-
 
 let adapter () =
   let options : Note.options =
@@ -42,9 +43,46 @@ let adapter () =
     "note removed" 1
     (tree |> Note.flatten ~accm:[] |> List.length)
 
+let suggest_path () =
+  let options : Note.options =
+    {
+      state_dir = Filename.temp_dir "note-test" "";
+      editor = "true";
+      on_modification = None;
+    }
+  in
+  options |> Note.create ~content:(Some "fuu") ~path:"/fuu";
+  options |> Note.create ~content:(Some "bar") ~path:"/fuu/bar";
+  options |> Note.create ~content:(Some "baz") ~path:"/fuu/baz";
+  let suggestions = options |> Note.Completion.suggest_paths ~hint:"/f" in
+  let result = List.nth_exn suggestions 0 in
+  Alcotest.(check string) "suggestion" "/fuu" result;
+  let suggestions = options |> Note.Completion.suggest_paths ~hint:"/fuu/b" in
+  let result = List.nth_exn suggestions 0 in
+  Alcotest.(check string) "suggestion" "/fuu/baz" result;
+  let result = List.nth_exn suggestions 1 in
+  Alcotest.(check string) "suggestion" "/fuu/bar" result
+
+let suggest_tags () =
+  let options : Note.options =
+    {
+      state_dir = Filename.temp_dir "note-test" "";
+      editor = "true";
+      on_modification = None;
+    }
+  in
+  options |> Note.create ~tags:[ "aa"; "bb" ] ~content:(Some "") ~path:"/fuu";
+  options |> Note.create ~tags:[ "cc"; "dd" ] ~content:(Some "") ~path:"/bar";
+  let result = options |> Note.Completion.suggest_tags ~hint:"a" in
+  Alcotest.(check string) "tag aa" "aa" (List.nth_exn result 0)
+
 let () =
   Alcotest.run "Note"
     [
       ("parse", [ Alcotest.test_case "parse" `Quick parsing ]);
       ("adapter", [ Alcotest.test_case "adapter" `Quick adapter ]);
+      ( "path_suggestion",
+        [ Alcotest.test_case "suggest path" `Quick suggest_path ] );
+      ( "tag_suggestion",
+        [ Alcotest.test_case "suggest tags" `Quick suggest_tags ] );
     ]
