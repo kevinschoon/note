@@ -111,11 +111,14 @@ let of_string ?(path = None) content =
 module Tree = struct
   type tree = Tree of (t * tree list)
 
-  let rec flatten ?(accm = []) tree =
-    let (Tree (note, others)) = tree in
-    List.fold ~init:(note :: accm)
-      ~f:(fun accm note -> flatten ~accm note)
-      others
+  let flatten tree =
+    let rec flatten ~accm tree =
+      let (Tree (note, others)) = tree in
+      List.fold ~init:(note :: accm)
+        ~f:(fun accm note -> flatten ~accm note)
+        others
+    in
+    tree |> flatten ~accm:[]
 
   let fst tree =
     let (Tree (note, _)) = tree in

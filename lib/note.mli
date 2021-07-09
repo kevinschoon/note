@@ -28,7 +28,7 @@ module Tree : sig
   val fst : tree -> t
   (* return the top level note of a given tree *)
 
-  val flatten : ?accm:t list -> tree -> t list
+  val flatten : tree -> t list
   (* flatten a tree into a list of notes *)
 end
 
