@@ -125,20 +125,17 @@ module Tree = struct
     note
 
   let rec resolve_manifest ~path manifest =
-    let items =
-      match manifest |> Manifest.list ~path with
-      | [] -> []
-      | items ->
-          items
-          |> List.map ~f:(fun item ->
-                 let path = item.path in
-                 let slug = item.slug |> Slug.to_string in
-                 let note =
-                   In_channel.read_all slug |> of_string ~path:(Some path)
-                 in
-                 Tree (note, manifest |> resolve_manifest ~path))
-    in
-    items
+    match manifest |> Manifest.list ~path with
+    | [] -> []
+    | items ->
+        items
+        |> List.map ~f:(fun item ->
+               let path = item.path in
+               let slug = item.slug |> Slug.to_string in
+               let note =
+                 In_channel.read_all slug |> of_string ~path:(Some path)
+               in
+               Tree (note, manifest |> resolve_manifest ~path))
 end
 
 (* high level adapter *)
