@@ -43,15 +43,9 @@ end
 
 type t = { frontmatter : Frontmatter.t; content : string }
 
-and tree = Tree of (t * tree list)
-
 let frontmatter note = note.frontmatter
 
 let content note = note.content
-
-let fst tree =
-  let (Tree (note, _)) = tree in
-  note
 
 let root_template =
   {|
@@ -63,10 +57,6 @@ tags: []
 
 # This is a Note!
 |}
-
-let rec flatten ?(accm = []) tree =
-  let (Tree (note, others)) = tree in
-  List.fold ~init:(note :: accm) ~f:(fun accm note -> flatten ~accm note) others
 
 let rec extract_structured_data (accm : Ezjsonm.value list) (doc : Omd.doc) :
     Ezjsonm.value list =
@@ -118,21 +108,35 @@ let of_string ?(path = None) content =
     { frontmatter; content }
   else { frontmatter = Frontmatter.empty; content }
 
-let rec resolve_manifest ~path manifest =
-  let items =
-    match manifest |> Manifest.list ~path with
-    | [] -> []
-    | items ->
-        items
-        |> List.map ~f:(fun item ->
-               let path = item.path in
-               let slug = item.slug |> Slug.to_string in
-               let note =
-                 In_channel.read_all slug |> of_string ~path:(Some path)
-               in
-               Tree (note, manifest |> resolve_manifest ~path))
-  in
-  items
+module Tree = struct
+  type tree = Tree of (t * tree list)
+
+  let rec flatten ?(accm = []) tree =
+    let (Tree (note, others)) = tree in
+    List.fold ~init:(note :: accm)
+      ~f:(fun accm note -> flatten ~accm note)
+      others
+
+  let fst tree =
+    let (Tree (note, _)) = tree in
+    note
+
+  let rec resolve_manifest ~path manifest =
+    let items =
+      match manifest |> Manifest.list ~path with
+      | [] -> []
+      | items ->
+          items
+          |> List.map ~f:(fun item ->
+                 let path = item.path in
+                 let slug = item.slug |> Slug.to_string in
+                 let note =
+                   In_channel.read_all slug |> of_string ~path:(Some path)
+                 in
+                 Tree (note, manifest |> resolve_manifest ~path))
+    in
+    items
+end
 
 (* high level adapter *)
 module Adapter = struct
@@ -166,7 +170,7 @@ module Adapter = struct
               root
           | _ -> failwith "not found")
     in
-    Tree (root, manifest |> resolve_manifest ~path)
+    Tree.Tree (root, manifest |> Tree.resolve_manifest ~path)
 
   let find ~path options =
     let manifest = options.state_dir |> Manifest.load_or_init in

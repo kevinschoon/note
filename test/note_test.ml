@@ -31,17 +31,17 @@ let adapter () =
   let tree = options |> Note.load ~path:"/" in
   Alcotest.(check int)
     "initialized" 1
-    (tree |> Note.flatten ~accm:[] |> List.length);
+    (tree |> Note.Tree.flatten ~accm:[] |> List.length);
   options |> Note.create ~content:(Some "bar") ~path:"/fuu";
   let tree = options |> Note.load ~path:"/" in
   Alcotest.(check int)
     "note added" 2
-    (tree |> Note.flatten ~accm:[] |> List.length);
+    (tree |> Note.Tree.flatten ~accm:[] |> List.length);
   options |> Note.remove ~path:"/fuu";
   let tree = options |> Note.load ~path:"/" in
   Alcotest.(check int)
     "note removed" 1
-    (tree |> Note.flatten ~accm:[] |> List.length)
+    (tree |> Note.Tree.flatten ~accm:[] |> List.length)
 
 let suggest_path () =
   let options : Note.options =

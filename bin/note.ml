@@ -37,17 +37,17 @@ module Display = struct
                         noop )))
 
   let rec convert_tree tree =
-    let (Note.Tree (note, others)) = tree in
+    let (Note.Tree.Tree (note, others)) = tree in
     let title =
       "[" ^ ((note |> Note.frontmatter).path |> Filename.basename) ^ "]"
     in
     Hierarchical.Tree (title, List.map ~f:convert_tree others)
 
   let convert_rows ~columns tree : row list =
-    let (Note.Tree (_, others)) = tree in
+    let (Note.Tree.Tree (_, others)) = tree in
     others
     |> List.map ~f:(fun other ->
-           let (Note.Tree (note, _)) = other in
+           let (Note.Tree.Tree (note, _)) = other in
            note)
     |> to_rows ~columns
 
@@ -143,7 +143,7 @@ is provided then all notes will be listed.
         paths
         |> List.map ~f:(fun path -> options |> Note.load ~path)
         |> List.iter ~f:(fun notes ->
-               let note = notes |> Note.fst in
+               let note = notes |> Note.Tree.fst in
                note |> Note.to_string |> print_endline)]
 
 let create_note =

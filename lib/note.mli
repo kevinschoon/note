@@ -6,12 +6,6 @@ end
 type t
 (* a note represented as a tuple of frontmatter and raw text content *)
 
-type tree = Tree of (t * tree list)
-(* notes arranged in a hierarchical structure *)
-
-val fst : tree -> t
-(* return the top level note of a given tree *)
-
 val to_string : t -> string
 (* return a note with frontmatter and content *)
 
@@ -27,8 +21,16 @@ val frontmatter : t -> Frontmatter.t
 val content : t -> string
 (* get the raw text content without frontmatter heading *)
 
-val flatten : ?accm:t list -> tree -> t list
-(* flatten a tree into a list of notes *)
+module Tree : sig
+  type tree = Tree of (t * tree list)
+  (* notes stored in a b-tree like data structure *)
+
+  val fst : tree -> t
+  (* return the top level note of a given tree *)
+
+  val flatten : ?accm:t list -> tree -> t list
+  (* flatten a tree into a list of notes *)
+end
 
 (* 
  *  high level adapter options for interaction from the CLI
@@ -40,7 +42,7 @@ type options = {
 }
 (* runtime options for interacting with the filesystem and manifest document*)
 
-val load : path:string -> options -> tree
+val load : path:string -> options -> Tree.tree
 (* load all notes below the given path *)
 
 val find : path:string -> options -> t option
