@@ -70,6 +70,23 @@ module Display = struct
         |> List.iter ~f:(fun row -> print_endline row)
 end
 
+module Encoding = struct
+  let to_stdout ~encoding tree =
+    match encoding with
+    | `Raw ->
+        let note = tree |> Note.Tree.fst in
+        note |> Note.to_string |> print_endline
+    | `Json ->
+        tree |> Note.Tree.to_json |> Ezjsonm.wrap |> Ezjsonm.to_string
+        |> print_endline
+    | `Yaml ->
+        tree |> Note.Tree.to_json |> Ezjsonm.wrap |> Yaml.to_string_exn
+        |> print_endline
+    | `Html -> 
+        let note = tree |> Note.Tree.fst in
+        note |> Note.to_html |> print_endline
+end
+
 module Args = struct
   let list_style =
     let styles =
@@ -93,6 +110,17 @@ module Args = struct
       ~complete:(fun _ ~part ->
         options |> Note.Completion.suggest_tags ~hint:part)
       (fun filter -> filter)
+
+  let encoding =
+    let encodings =
+      Config.Encoding.all |> List.map ~f:Config.Encoding.to_string
+    in
+    Command.Arg_type.create
+      ~complete:(fun _ ~part ->
+        encodings
+        |> List.filter ~f:(fun encoding ->
+               String.is_substring ~substring:part encoding))
+      Config.Encoding.of_string
 
   let config_key =
     let keys = List.map ~f:Config.Key.to_string Config.Key.all in
@@ -137,14 +165,16 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let paths = anon (sequence ("path" %: Args.path)) in
+      let paths = anon (sequence ("path" %: Args.path))
+      and encoding = flag "encoding" (optional Args.encoding) ~doc:"encoding" in
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
+        let encoding =
+          match encoding with Some encoding -> encoding | None -> `Raw
+        in
         paths
         |> List.map ~f:(fun path -> options |> Note.load ~path)
-        |> List.iter ~f:(fun notes ->
-               let note = notes |> Note.Tree.fst in
-               note |> Note.to_string |> print_endline)]
+        |> List.iter ~f:(Encoding.to_stdout ~encoding)]
 
 let create_note =
   let open Command.Let_syntax in

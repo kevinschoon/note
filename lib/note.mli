@@ -15,6 +15,9 @@ val of_string : ?path:string option -> string -> t
 val to_json : t -> Ezjsonm.value
 (* get a note as json data with structured data extracted from it *)
 
+val to_html : t -> string
+(* return the html form of a note *)
+
 val frontmatter : t -> Frontmatter.t
 (* get decoded frontmatter structure *)
 
@@ -30,6 +33,9 @@ module Tree : sig
 
   val flatten : tree -> t list
   (* flatten a tree into a list of notes *)
+
+  val to_json : tree -> Ezjsonm.value
+  (* return a json representation of each note and it's descendants *)
 end
 
 (* 

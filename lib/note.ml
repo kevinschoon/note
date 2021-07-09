@@ -87,6 +87,9 @@ let to_json note =
       ("data", data);
     ]
 
+let to_html note =
+  note.content |> Omd.of_string |> Omd.to_html
+
 let to_string note =
   let yaml = Yaml.to_string_exn (Frontmatter.to_json note.frontmatter) in
   "\n---\n" ^ yaml ^ "\n---\n" ^ note.content
@@ -123,6 +126,15 @@ module Tree = struct
   let fst tree =
     let (Tree (note, _)) = tree in
     note
+
+  let note_to_json = to_json
+
+  let rec to_json tree = 
+    let (Tree (root, others)) = tree in
+    Ezjsonm.dict [
+      ("note", (root |> note_to_json)) ;
+      ("descendants", others |> List.map ~f:to_json |> Ezjsonm.list (fun a -> a))
+    ]
 
   let rec resolve_manifest ~path manifest =
     match manifest |> Manifest.list ~path with
