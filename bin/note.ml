@@ -1,8 +1,6 @@
 open Core
 open Note_lib
 
-(* todo global locking *)
-
 let cfg = Config.config_path |> Config.load
 
 let options : Note.options =
@@ -12,7 +10,78 @@ let options : Note.options =
     editor = cfg.editor;
   }
 
+module Display = struct
+  include Note_lib.Display
+
+  let noop text = text
+
+  let header columns =
+    columns
+    |> List.map ~f:(fun column -> (column |> Config.Column.to_string, noop))
+
+  let to_rows ~columns (notes : Note.t list) : row list =
+    notes
+    |> List.map ~f:(fun note ->
+           columns
+           |> List.map ~f:(fun column ->
+                  match column with
+                  | `Title ->
+                      ( (note |> Note.frontmatter).path |> Filename.basename,
+                        noop )
+                  | `Description -> (
+                      match (note |> Note.frontmatter).description with
+                      | Some description -> (description, noop)
+                      | None -> ("", noop))
+                  | `Tags ->
+                      ( (note |> Note.frontmatter).tags |> String.concat ~sep:" ",
+                        noop )))
+
+  let rec convert_tree tree =
+    let (Note.Tree (note, others)) = tree in
+    let title =
+      "[" ^ ((note |> Note.frontmatter).path |> Filename.basename) ^ "]"
+    in
+    Hierarchical.Tree (title, List.map ~f:convert_tree others)
+
+  let convert_rows ~columns tree : row list =
+    let (Note.Tree (_, others)) = tree in
+    others
+    |> List.map ~f:(fun other ->
+           let (Note.Tree (note, _)) = other in
+           note)
+    |> to_rows ~columns
+
+  let to_stdout ~style ~columns notes =
+    match style with
+    | `Tree ->
+        notes |> convert_tree |> Display.Hierarchical.to_string |> print_endline
+    | `Simple ->
+        notes
+        |> convert_rows ~columns:[ `Title ]
+        |> List.iter ~f:(fun row -> print_endline (fst (row |> List.hd_exn)))
+    | `Fixed ->
+        (columns |> header) :: (notes |> convert_rows ~columns)
+        |> Tabular.fixed
+        |> List.iter ~f:(fun row -> print_endline row)
+    | `Wide ->
+        let width, _ = ANSITerminal.size () in
+        (columns |> header) :: (notes |> convert_rows ~columns)
+        |> Tabular.wide ~width
+        |> List.iter ~f:(fun row -> print_endline row)
+end
+
 module Args = struct
+  let list_style =
+    let styles =
+      Config.ListStyle.all |> List.map ~f:Config.ListStyle.to_string
+    in
+    Command.Arg_type.create
+      ~complete:(fun _ ~part ->
+        styles
+        |> List.filter ~f:(fun style ->
+               style |> String.is_substring ~substring:part))
+      (fun key -> key |> Config.ListStyle.of_string)
+
   let path =
     Command.Arg_type.create
       ~complete:(fun _ ~part ->
@@ -26,12 +95,11 @@ module Args = struct
       (fun filter -> filter)
 
   let config_key =
+    let keys = List.map ~f:Config.Key.to_string Config.Key.all in
     Command.Arg_type.create
       ~complete:(fun _ ~part ->
-        let string_keys = List.map ~f:Config.Key.to_string Config.Key.all in
-        List.filter
-          ~f:(fun key -> String.is_substring ~substring:part key)
-          string_keys)
+        keys
+        |> List.filter ~f:(fun key -> String.is_substring ~substring:part key))
       Config.Key.of_string
 end
 
@@ -143,14 +211,19 @@ List one or more notes that match the filter criteria, if no filter criteria
 is provided then all notes will be listed.
 |})
     [%map_open
-      let paths = anon (sequence ("path" %: Args.path)) in
+      let paths = anon (sequence ("path" %: Args.path))
+      and style =
+        flag "style"
+          (optional_with_default cfg.list_style Args.list_style)
+          ~doc:"style"
+      in
       fun () ->
         let paths = match paths with [] -> [ "/" ] | paths -> paths in
+        let columns = cfg.column_list in
         paths
         |> List.map ~f:(fun path -> options |> Note.load ~path)
         |> List.iter ~f:(fun notes ->
-               notes |> Display.convert_tree |> Display.Hierarchical.to_string
-               |> print_endline)]
+               notes |> Display.to_stdout ~style ~columns)]
 
 let sync =
   Command.basic ~summary:"sync notes to a remote server"

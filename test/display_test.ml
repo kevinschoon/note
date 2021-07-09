@@ -1,75 +1,48 @@
 open Core
-open Note_lib
+open Note_lib.Display
 
-let notes =
-  [
-    {| 
----
-path: fuu
-description: "fuu note"
-tags: [a,b,c]
----
-|};
-    {|
----
-path: bar
-description: "bar note with a very long description"
-tags: [d,e,f]
----
-|};
-    {|
----
-path: baz
-description: "baz note"
-tags: [h,i,j]
----
-|};
-    {|
----
-path: qux
-description: "qux note"
-tags: [k,l,m]
----
-|};
-  ]
-  |> List.map ~f:Note.of_string
-
-let test_tabular_display_simple () =
-  let open Display in
-  let expected = {|
-fuu
-bar
-baz
-qux
-|} in
-  let result =
-    notes |> Tabular.to_cells ~columns:[ `Title ] ~styles:[] |> Tabular.simple
-  in
-  Alcotest.(check string) "tabular_simple" expected result
+let noop s = s
 
 let test_tabular_display_fixed () =
-  let open Display in
-  let expected =
-    {|
-title   description                             tags
-fuu     fuu note                                a|b|c
-bar     bar note with a very long description   d|e|f
-baz     baz note                                h|i|j
-qux     qux note                                k|l|m
-|}
+  let rows =
+    [
+      [ ("AAA", noop); ("BBBB", noop); ("CCCC", noop) ];
+      [ ("aaaaaaa", noop); ("b", noop); ("cccccccc", noop) ];
+      [ ("aa", noop); ("bbb", noop); ("c", noop) ];
+    ]
   in
-  let result =
-    notes
-    |> Tabular.to_cells ~columns:[ `Title; `Description; `Tags ] ~styles:[]
-    |> Tabular.fixed
-  in
+  let expected = {|
+AAA     BBBB CCCC     
+aaaaaaa b    cccccccc 
+aa      bbb  c        |} in
+  let result = "\n" ^ (rows |> Tabular.fixed |> String.concat ~sep:"\n") in
+  print_endline "EXPECTED:" ;
   print_endline (String.Hexdump.to_string_hum expected);
+  print_endline "RESULT:" ;
   print_endline (String.Hexdump.to_string_hum result);
-  (* TODO: somehow broken string result *)
-  Alcotest.(check pass) "tabular_fixed" expected result
+  Alcotest.(check string) "tabular_fixed" expected result
+
+let test_tabular_display_wide () =
+  let rows =
+    [
+      [ ("AAA", noop); ("BBBB", noop); ("CCCC", noop) ];
+      [ ("aaaaaaa", noop); ("b", noop); ("cccccccc", noop) ];
+      [ ("aa", noop); ("bbb", noop); ("c", noop) ];
+    ]
+  in
+  let expected = {|
+AAA             BBBB CCCC     
+aaaaaaa         b    cccccccc 
+aa              bbb  c        |} in
+  let result = "\n" ^ (rows |> Tabular.wide ~width:30 |> String.concat ~sep:"\n") in
+  print_endline "EXPECTED:" ;
+  print_endline (String.Hexdump.to_string_hum expected);
+  print_endline "RESULT:" ;
+  print_endline (String.Hexdump.to_string_hum result);
+  Alcotest.(check string) "tabular_fixed" expected result
 
 let test_hierarchical_display () =
-  let open Display.Hierarchical in
+  let open Hierarchical in
   let expected = {|
 A
 ├──B
@@ -89,11 +62,10 @@ let () =
       ( "tree",
         [ Alcotest.test_case "display a tree" `Quick test_hierarchical_display ]
       );
-      ( "tabular-simple",
-        [
-          Alcotest.test_case "tabular fixed" `Quick test_tabular_display_simple;
-        ] );
       ( "tabular-fixed",
         [ Alcotest.test_case "tabular fixed" `Quick test_tabular_display_fixed ]
+      );
+      ( "tabular-wide",
+        [ Alcotest.test_case "tabular wide" `Quick test_tabular_display_wide ]
       );
     ]
