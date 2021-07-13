@@ -123,6 +123,33 @@ module Tree = struct
 
   let note_to_json = to_json
 
+  let to_html tree =
+    let open Soup in
+    let rec to_nodes ~title others =
+      match others with
+      | [] ->
+          let li = create_element "li" in
+          append_child li (create_element ~inner_text:title "span");
+          li
+      | tl ->
+          let li = create_element "li" in
+          append_child li (create_element ~inner_text:title "span");
+          let ul = create_element "ul" in
+          append_child li ul;
+          tl
+          |> List.iter ~f:(fun other ->
+                 let (Tree (root, others)) = other in
+                 let title = (root |> frontmatter).path in
+                 append_child ul (to_nodes ~title others));
+          li
+    in
+    let (Tree (root, others)) = tree in
+    let title = (root |> frontmatter).path in
+    let index = to_nodes ~title others in
+    let soup = Html.template |> parse in
+    index |> replace (soup $ "navigation");
+    soup |> to_string
+
   let rec to_json tree =
     let (Tree (root, others)) = tree in
     Ezjsonm.dict

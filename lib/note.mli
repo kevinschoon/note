@@ -35,7 +35,11 @@ module Tree : sig
   (* flatten a tree into a list of notes *)
 
   val to_json : tree -> Ezjsonm.value
-  (* return a json representation of each note and it's descendants *)
+  (* return a json representation of each note and their descendants *)
+
+  val to_html : tree -> string
+  (* return an html represetation of each note and their descendants *)
+
 end
 
 (* 

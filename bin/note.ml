@@ -83,8 +83,7 @@ module Encoding = struct
         tree |> Note.Tree.to_json |> Ezjsonm.wrap |> Yaml.to_string_exn
         |> print_endline
     | `Html -> 
-        let note = tree |> Note.Tree.fst in
-        note |> Note.to_html |> print_endline
+        tree |> Note.Tree.to_html |> print_endline
 end
 
 module Args = struct
