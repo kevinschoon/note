@@ -29,14 +29,10 @@ let adapter () =
     }
   in
   let tree = options |> Note.load ~path:"/" in
-  Alcotest.(check int)
-    "initialized" 1
-    (tree |> Note.Tree.flatten |> List.length);
+  Alcotest.(check int) "initialized" 1 (tree |> Note.Tree.flatten |> List.length);
   options |> Note.create ~content:(Some "bar") ~path:"/fuu";
   let tree = options |> Note.load ~path:"/" in
-  Alcotest.(check int)
-    "note added" 2
-    (tree |> Note.Tree.flatten |> List.length);
+  Alcotest.(check int) "note added" 2 (tree |> Note.Tree.flatten |> List.length);
   options |> Note.remove ~path:"/fuu";
   let tree = options |> Note.load ~path:"/" in
   Alcotest.(check int)
@@ -76,6 +72,26 @@ let suggest_tags () =
   let result = options |> Note.Completion.suggest_tags ~hint:"a" in
   Alcotest.(check string) "tag aa" "aa" (List.nth_exn result 0)
 
+let structured_data () =
+  let note = Note.of_string {|
+# Some Data
+```json
+{"a": "b"}
+```
+|} in
+  let result =
+    note |> Note.to_json |> Ezjsonm.wrap |> Ezjsonm.to_string
+    |> Ezjsonm.from_string
+  in
+  let result = Ezjsonm.get_list (fun a -> a) result in
+  let result = List.nth_exn result 0 in
+  let result =
+    Ezjsonm.find result [ "data" ] |> Ezjsonm.get_list (fun a -> a)
+  in
+  let result = List.nth_exn result 0 in
+  let result = Ezjsonm.find result [ "a" ] |> Ezjsonm.get_string in
+  Alcotest.(check string) "data" "b" result
+
 let () =
   Alcotest.run "Note"
     [
@@ -85,4 +101,6 @@ let () =
         [ Alcotest.test_case "suggest path" `Quick suggest_path ] );
       ( "tag_suggestion",
         [ Alcotest.test_case "suggest tags" `Quick suggest_tags ] );
+      ( "structured",
+        [ Alcotest.test_case "structured data" `Quick structured_data ] );
     ]

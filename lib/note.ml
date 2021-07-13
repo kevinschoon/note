@@ -58,37 +58,31 @@ tags: []
 # This is a Note!
 |}
 
-let rec extract_structured_data (accm : Ezjsonm.value list) (doc : Omd.doc) :
-    Ezjsonm.value list =
-  match doc with
-  | [] -> accm
-  | hd :: tl -> (
-      match hd.bl_desc with
-      | Code_block (kind, content) -> (
-          match kind with
-          | "json" ->
-              let accm = accm @ [ Ezjsonm.from_string content ] in
-              extract_structured_data accm tl
-          | "yaml" ->
-              let accm = accm @ [ Ezjsonm.wrap (Yaml.of_string_exn content) ] in
-              extract_structured_data accm tl
-          | _ -> extract_structured_data accm tl)
-      | _ -> extract_structured_data accm tl)
+let extract_structured_data content =
+  let of_codeblock kind content =
+    match kind with
+    | "json" -> [ content |> Ezjsonm.from_string ]
+    | "yaml" -> [ Ezjsonm.wrap (content |> Yaml.of_string_exn) ]
+    | _ -> []
+  in
+  let get_data ~values doc =
+    match doc with
+    | Omd.Code_block (_, kind, content) -> of_codeblock kind content @ values
+    | _ -> values
+  in
+  let doc = content |> Omd.of_string in
+  doc |> List.concat_map ~f:(fun doc -> doc |> get_data ~values:[])
 
 let to_json note =
-  let data =
-    note.content |> Omd.of_string |> extract_structured_data []
-    |> Ezjsonm.list (fun value -> value)
-  in
   Ezjsonm.dict
     [
       ("frontmatter", Frontmatter.to_json note.frontmatter);
       ("content", Ezjsonm.string note.content);
-      ("data", data);
+      ( "data",
+        note.content |> extract_structured_data |> Ezjsonm.list (fun a -> a) );
     ]
 
-let to_html note =
-  note.content |> Omd.of_string |> Omd.to_html
+let to_html note = note.content |> Omd.of_string |> Omd.to_html
 
 let to_string note =
   let yaml = Yaml.to_string_exn (Frontmatter.to_json note.frontmatter) in
@@ -129,12 +123,14 @@ module Tree = struct
 
   let note_to_json = to_json
 
-  let rec to_json tree = 
+  let rec to_json tree =
     let (Tree (root, others)) = tree in
-    Ezjsonm.dict [
-      ("note", (root |> note_to_json)) ;
-      ("descendants", others |> List.map ~f:to_json |> Ezjsonm.list (fun a -> a))
-    ]
+    Ezjsonm.dict
+      [
+        ("note", root |> note_to_json);
+        ( "descendants",
+          others |> List.map ~f:to_json |> Ezjsonm.list (fun a -> a) );
+      ]
 
   let rec resolve_manifest ~path manifest =
     match manifest |> Manifest.list ~path with
