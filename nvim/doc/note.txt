@@ -1,0 +1,13 @@
+================================================================================
+                                                                *alpha.nvim*
+
+note.nvim is a neovim plugin for Note.
+
+Source code is available at:
+https://github.com/kevinschoon/note/nvim
+
+  :h NoteDoStuff
+
+Note                                                            *NoteDoStuff*
+  List all Notes
+================================================================================
