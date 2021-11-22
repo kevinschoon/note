@@ -14,6 +14,7 @@ docs: \
 	doc/note-cat.1 \
 	doc/note-config.1 \
 	doc/note-create.1 \
+	doc/note-delete.1 \
 	doc/note-edit.1 \
 	doc/note-ls.1 \
 	doc/note-sync.1
