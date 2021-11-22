@@ -1,6 +1,12 @@
 # Note 🐪
 
-`Note` is a simple CLI based note taking application. 
+`Note` is a hierarchical based note taking application. 
+
+## Installation
+
+### Package Managers
+
+A package for ArchLinux is available on the [AUR](https://aur.archlinux.org/packages/note-ocaml).
 
 ## The Anatomy of a Note
 
