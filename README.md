@@ -84,12 +84,20 @@ date (YYYYMMDD) on which it was created. If multiple notes are created on one da
 be appended to the file.
 
 ```bash
-$ tree ~/.local/share/note/
-/home/kevin/.local/share/note/
-├── note-20200818-1.md
-├── note-20200819-1.md
-├── note-20200819-2.md
-└── note-20200819-3.md
+$ tree .
+.
+├── manifest.json
+├── note-20211123-0.md
+├── note-20211123-1.md
+├── note-20211123-2.md
+├── note-20211123-3.md
+├── note-20211123-4.md
+├── note-20211123-5.md
+├── note-20211123-6.md
+├── note-20211123-7.md
+├── note-20211123-8.md
+└── note-20211123-9.md
+
 ```
 
 ## Persisting Notes with Git
