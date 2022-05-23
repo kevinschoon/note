@@ -21,8 +21,8 @@ let test_slug_comparable () =
   Alcotest.(check bool) "identical paths" true (Slug.compare s1 s2 = 0)
 
 let test_slug_path () =
-  let date_string = Time.format (Time.now ()) "%Y%m%d" ~zone:Time.Zone.utc in
-  let state_dir = Filename.temp_dir "note-test" "" in
+  let date_string = Time_unix.format (Time.now ()) "%Y%m%d" ~zone:Time.Zone.utc in
+  let state_dir = Filename_unix.temp_dir "note-test" "" in
   let slug = Slug.next state_dir in
   let expected =
     Filename.concat state_dir (sprintf "note-%s-0.md" date_string)
@@ -30,7 +30,7 @@ let test_slug_path () =
   Alcotest.(check string) "path" expected slug.path
 
 let test_slug_increment () =
-  let date_string = Time.format (Time.now ()) "%Y%m%d" ~zone:Time.Zone.utc in
+  let date_string = Time_unix.format (Time.now ()) "%Y%m%d" ~zone:Time.Zone.utc in
   let slug = Slug.next "/fuu/bar" in
   let expected = sprintf "/fuu/bar/note-%s-%d.md" date_string 0 in
   Alcotest.(check string) "check path" expected (slug |> Slug.to_string);

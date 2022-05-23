@@ -3,7 +3,7 @@ open Note_lib
 
 let test_recurse () =
   let manifest =
-    Manifest.make (Filename.temp_dir "note-test" "")
+    Manifest.make (Filename_unix.temp_dir "note-test" "")
     |> Manifest.create ~path:"/"
     |> Manifest.create ~path:"/a"
     |> Manifest.create ~path:"/a/b"
@@ -18,7 +18,7 @@ let test_recurse () =
   Alcotest.(check int) "n_results" 0 (List.length (manifest |> Manifest.list ~path:"/a/b/c/d"))
 
 let test_manifest () =
-  let manifest = Manifest.make (Filename.temp_dir "note-test" "") in
+  let manifest = Manifest.make (Filename_unix.temp_dir "note-test" "") in
   manifest |> Manifest.save;
   let manifest =
     Manifest.load_or_init manifest.state_dir |> Manifest.create ~path:"/fuu"
@@ -45,7 +45,7 @@ let test_manifest () =
 
 let test_move () =
   let manifest =
-    Manifest.make (Filename.temp_dir "note-test" "")
+    Manifest.make (Filename_unix.temp_dir "note-test" "")
     |> Manifest.create ~path:"/a"
     |> Manifest.create ~path:"/a/b"
   in

@@ -67,7 +67,7 @@ let extract_structured_data content =
   in
   let get_data ~values doc =
     match doc with
-    | Omd.Code_block (_, kind, content) -> of_codeblock kind content @ values
+    | Omd.Code_block (kind, content) -> of_codeblock kind content @ values
     | _ -> values
   in
   let doc = content |> Omd.of_string in
@@ -184,7 +184,7 @@ module Adapter = struct
   let editor_command ~editor path = Format.sprintf "%s %s" editor path
 
   let run_or_noop command =
-    match command with Some command -> command |> Sys.command_exn | None -> ()
+    match command with Some command -> command |> Sys_unix.command_exn | None -> ()
 
   let load ~path options =
     let manifest = options.state_dir |> Manifest.load_or_init in
@@ -235,7 +235,7 @@ module Adapter = struct
         slug |> Slug.to_string |> Out_channel.write_all ~data:(note |> to_string);
         slug |> Slug.to_string
         |> editor_command ~editor:options.editor
-        |> Sys.command_exn);
+        |> Sys_unix.command_exn);
     options.on_modification |> run_or_noop;
     manifest |> Manifest.save
 
@@ -246,7 +246,7 @@ module Adapter = struct
     | Some item ->
         let slug = item.slug in
         let manifest = manifest |> Manifest.remove ~path in
-        slug |> Slug.to_string |> Unix.remove;
+        slug |> Slug.to_string |> Sys_unix.remove;
         options.on_modification |> run_or_noop;
         manifest |> Manifest.save
     | None -> failwith "not found"
@@ -259,7 +259,7 @@ module Adapter = struct
         let slug = item.slug in
         slug |> Slug.to_string
         |> editor_command ~editor:options.editor
-        |> Sys.command_exn;
+        |> Sys_unix.command_exn;
         let note = slug |> Slug.to_string |> In_channel.read_all |> of_string in
         let adjusted_path = note.frontmatter.path in
         (if not (Filename.equal adjusted_path item.path) then

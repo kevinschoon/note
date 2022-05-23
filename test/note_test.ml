@@ -23,7 +23,7 @@ description: "baz"
 let adapter () =
   let options : Note.options =
     {
-      state_dir = Filename.temp_dir "note-test" "";
+      state_dir = Filename_unix.temp_dir "note-test" "";
       editor = "true";
       on_modification = None;
     }
@@ -42,7 +42,7 @@ let adapter () =
 let suggest_path () =
   let options : Note.options =
     {
-      state_dir = Filename.temp_dir "note-test" "";
+      state_dir = Filename_unix.temp_dir "note-test" "";
       editor = "true";
       on_modification = None;
     }
@@ -62,7 +62,7 @@ let suggest_path () =
 let suggest_tags () =
   let options : Note.options =
     {
-      state_dir = Filename.temp_dir "note-test" "";
+      state_dir = Filename_unix.temp_dir "note-test" "";
       editor = "true";
       on_modification = None;
     }

@@ -268,7 +268,7 @@ let version =
   | Some v -> Build_info.V1.Version.to_string v
 
 let run =
-  Command.run ~version ~build_info:""
+  Command_unix.run ~version ~build_info:""
     (Command.group ~summary:"Note is a simple CLI based note taking application"
        [
          ("cat", cat_notes);

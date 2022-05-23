@@ -3,6 +3,6 @@
  (name note)
  (preprocess
   (pps ppx_jane))
- (libraries note_lib base core dune-build-info)
+ (libraries note_lib base core core_unix.command_unix dune-build-info)
  (modes exe)
  (ocamlopt_flags))

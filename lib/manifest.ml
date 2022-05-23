@@ -79,19 +79,19 @@ let mpath manifest = Filename.concat manifest.state_dir "manifest.json"
 
 let lock manifest =
   let lockfile = manifest |> lockfile in
-  match lockfile |> Sys.file_exists with
+  match lockfile |> Sys_unix.file_exists with
   | `Yes -> failwith "unable to aquire lock"
   | `No | `Unknown -> Out_channel.write_all ~data:"<locked>" lockfile
 
 let unlock manifest =
   let lockfile = manifest |> lockfile in
-  match lockfile |> Sys.file_exists with
-  | `Yes -> Sys.remove lockfile
+  match lockfile |> Sys_unix.file_exists with
+  | `Yes -> Sys_unix.remove lockfile
   | `No | `Unknown -> ()
 
 let load_or_init state_dir =
   let mpath = Filename.concat state_dir "manifest.json" in
-  match Sys.file_exists mpath with
+  match Sys_unix.file_exists mpath with
   | `Yes ->
       mpath |> In_channel.read_all |> of_string ~state_dir:(Some state_dir)
   | `No | `Unknown ->

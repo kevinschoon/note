@@ -2,7 +2,7 @@ open Core
 
 let noop a = a
 
-let home = Sys.home_directory ()
+let home = Sys_unix.home_directory ()
 
 let base_xdg_config_path = Filename.concat home ".config"
 
@@ -347,19 +347,19 @@ let set t key value =
 
 let load path =
   let cfg =
-    match Sys.file_exists path with
+    match Sys_unix.file_exists path with
     | `Yes -> of_string (In_channel.read_all path)
     | `No | `Unknown ->
-        Unix.mkdir_p (Filename.dirname path);
+        Core_unix.mkdir_p (Filename.dirname path);
         Out_channel.write_all path ~data:(Ezjsonm.to_string (Ezjsonm.dict []));
         of_string (In_channel.read_all path)
   in
 
   (* intiailize the state directory if it is missing *)
-  match Sys.file_exists cfg.state_dir with
+  match Sys_unix.file_exists cfg.state_dir with
   | `Yes -> cfg
   | `No | `Unknown ->
-      Unix.mkdir_p cfg.state_dir;
+      Core_unix.mkdir_p cfg.state_dir;
       cfg
 
 let save t = Out_channel.write_all ~data:(to_string t) config_path
